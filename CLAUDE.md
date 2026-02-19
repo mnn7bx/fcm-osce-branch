@@ -7,7 +7,7 @@ FCM Companion is a mobile-first web app for UVA medical students to practice dif
 - **Framework:** Next.js 16, TypeScript, Tailwind v4
 - **UI:** shadcn/ui components, Lucide icons
 - **Database:** Supabase (shared instance with HDS Workflow Tool, `fcm_` prefixed tables)
-- **AI:** Anthropic SDK (claude-sonnet-4-5 for feedback + OSCE evaluation)
+- **AI:** Anthropic SDK (claude-sonnet-4-6 for feedback + OSCE evaluation)
 - **Deploy:** Vercel
 
 ## Architecture
