@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/cases", label: "Cases", icon: ClipboardList },
   { href: "/notes", label: "Notes", icon: StickyNote },
-  { href: "/reference", label: "Reference", icon: BookOpen },
+  { href: "/reference", label: "Resources", icon: BookOpen },
   { href: "/osce", label: "OSCE", icon: GraduationCap },
 ];
 
@@ -56,6 +56,7 @@ export default function StudentLayout({
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <LogOut className="h-3.5 w-3.5" />
+            Log out
           </button>
         </div>
       </header>
@@ -81,7 +82,7 @@ export default function StudentLayout({
                 )}
               >
                 <item.icon
-                  className={cn("h-5 w-5", isActive && "text-primary")}
+                  className={cn("h-6 w-6", isActive && "text-primary")}
                 />
                 <span>{item.label}</span>
               </Link>

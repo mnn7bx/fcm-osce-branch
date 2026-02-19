@@ -13,7 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle, FileEdit, ArrowRight } from "lucide-react";
+import { Clock, CheckCircle, FileEdit, ArrowRight, Lock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CaseWithSchedule {
   schedule: FcmSchedule;
@@ -110,7 +111,7 @@ export default function CasesPage() {
             return (
               <Card
                 key={c.schedule.id}
-                className="cursor-pointer hover:border-primary/50 transition-colors"
+                className="cursor-pointer border-l-4 border-l-primary hover:border-primary/50 transition-colors"
                 onClick={() => router.push(`/cases/${c.case_data.id}`)}
               >
                 <CardHeader className="pb-2">
@@ -151,20 +152,21 @@ export default function CasesPage() {
             Upcoming
           </h2>
           {upcomingCases.map((c) => (
-            <Card key={c.schedule.id} className="opacity-60">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs">
+            <Card key={c.schedule.id} className="opacity-50 border-dashed pointer-events-none">
+              <CardHeader className="pb-1 pt-3">
+                <CardDescription className="text-xs flex items-center gap-1">
+                  <Lock className="h-3 w-3" />
                   {c.schedule.week_label} — Unlocks{" "}
                   {new Date(c.schedule.unlock_date).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
                   })}
                 </CardDescription>
-                <CardTitle className="text-base mt-1">
+                <CardTitle className="text-sm mt-1">
                   {c.case_data.chief_complaint}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 pb-3">
                 <div className="text-xs text-muted-foreground">
                   {c.case_data.body_system}
                 </div>

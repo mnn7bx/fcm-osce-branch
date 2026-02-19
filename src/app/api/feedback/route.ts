@@ -4,10 +4,19 @@ import { createServerClient } from "@/lib/supabase";
 import { compareDifferential, buildFeedbackPrompt } from "@/lib/feedback";
 import type { DiagnosisEntry, AnswerKeyEntry, FeedbackResult } from "@/types";
 
-const anthropic = new Anthropic();
-
 export async function POST(request: NextRequest) {
   try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      console.error("ANTHROPIC_API_KEY is not set");
+      return NextResponse.json(
+        { error: "AI feedback is not configured. Please contact your instructor." },
+        { status: 503 }
+      );
+    }
+
+    const anthropic = new Anthropic({ apiKey });
+
     const { user_id, case_id } = await request.json();
 
     if (!user_id || !case_id) {

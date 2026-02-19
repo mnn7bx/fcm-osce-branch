@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/lib/user-context";
 import { useAutosave } from "@/lib/use-autosave";
-import type { FcmCase, FcmSubmission, DiagnosisEntry } from "@/types";
+import type { FcmCase, FcmSubmission, FcmNote, DiagnosisEntry } from "@/types";
 import { VINDICATE_CATEGORIES } from "@/types";
+import { searchDiagnoses } from "@/data/diagnosis-lookup";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Plus,
   X,
@@ -23,6 +25,8 @@ import {
   Cloud,
   CloudOff,
   AlertCircle,
+  StickyNote,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -62,21 +66,21 @@ function SaveStatusIndicator({ status }: { status: string }) {
 }
 
 interface VindicateSelectorProps {
-  selected: string | undefined;
-  onSelect: (key: string | undefined) => void;
+  selected: string[];
+  onToggle: (key: string) => void;
 }
 
-function VindicateSelector({ selected, onSelect }: VindicateSelectorProps) {
+function VindicateSelector({ selected, onToggle }: VindicateSelectorProps) {
   return (
     <div className="flex flex-wrap gap-1">
       {VINDICATE_CATEGORIES.map((cat) => {
-        const isSelected = selected === cat.key;
+        const isSelected = selected.includes(cat.key);
         return (
           <button
             key={cat.key}
             type="button"
             title={cat.label}
-            onClick={() => onSelect(isSelected ? undefined : cat.key)}
+            onClick={() => onToggle(cat.key)}
             className={cn(
               "flex h-7 w-7 items-center justify-center rounded text-xs font-medium transition-colors",
               isSelected
@@ -96,12 +100,17 @@ interface VindicateCoverageSummaryProps {
   diagnoses: DiagnosisEntry[];
 }
 
+function getCategories(d: DiagnosisEntry): string[] {
+  if (d.vindicate_categories && d.vindicate_categories.length > 0) {
+    return d.vindicate_categories;
+  }
+  // Backward compat: old single-string field
+  if (d.vindicate_category) return [d.vindicate_category];
+  return [];
+}
+
 function VindicateCoverageSummary({ diagnoses }: VindicateCoverageSummaryProps) {
-  const coveredKeys = new Set(
-    diagnoses
-      .map((d) => d.vindicate_category)
-      .filter((c): c is string => Boolean(c))
-  );
+  const coveredKeys = new Set(diagnoses.flatMap(getCategories));
 
   return (
     <div className="space-y-2">
@@ -133,7 +142,7 @@ interface DiagnosisRowProps {
   entry: DiagnosisEntry;
   index: number;
   total: number;
-  onUpdateCategory: (index: number, category: string | undefined) => void;
+  onToggleCategory: (index: number, key: string) => void;
   onRemove: (index: number) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
@@ -143,7 +152,7 @@ function DiagnosisRow({
   entry,
   index,
   total,
-  onUpdateCategory,
+  onToggleCategory,
   onRemove,
   onMoveUp,
   onMoveDown,
@@ -191,8 +200,8 @@ function DiagnosisRow({
           </div>
         </div>
         <VindicateSelector
-          selected={entry.vindicate_category}
-          onSelect={(key) => onUpdateCategory(index, key)}
+          selected={getCategories(entry)}
+          onToggle={(key) => onToggleCategory(index, key)}
         />
       </CardContent>
     </Card>
@@ -208,6 +217,16 @@ export default function CaseDifferentialPage() {
   const [submission, setSubmission] = useState<FcmSubmission | null>(null);
   const [diagnoses, setDiagnoses] = useState<DiagnosisEntry[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const [noteContent, setNoteContent] = useState("");
+  const [questionContent, setQuestionContent] = useState("");
+  const [questionSent, setQuestionSent] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
+  const [sendingQuestion, setSendingQuestion] = useState(false);
+  const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -226,10 +245,16 @@ export default function CaseDifferentialPage() {
     if (!user?.id || !caseId) return;
 
     async function fetchData() {
-      const [caseResult, submissionResult] = await Promise.all([
+      const [caseResult, submissionResult, noteResult] = await Promise.all([
         supabase.from("fcm_cases").select("*").eq("id", caseId).single(),
         supabase
           .from("fcm_submissions")
+          .select("*")
+          .eq("user_id", user!.id)
+          .eq("case_id", caseId)
+          .maybeSingle(),
+        supabase
+          .from("fcm_notes")
           .select("*")
           .eq("user_id", user!.id)
           .eq("case_id", caseId)
@@ -246,15 +271,34 @@ export default function CaseDifferentialPage() {
         setDiagnoses(sub.diagnoses ?? []);
       }
 
+      if (noteResult.data) {
+        const note = noteResult.data as FcmNote;
+        setNoteContent(note.content || "");
+        if (note.is_sent_to_instructor) setQuestionSent(true);
+      }
+
       setLoading(false);
     }
 
     fetchData();
   }, [user?.id, caseId]);
 
-  const addDiagnosis = useCallback(
-    function addDiagnosis() {
-      const trimmed = inputValue.trim();
+  function handleInputChange(value: string) {
+    setInputValue(value);
+    if (value.trim().length > 0) {
+      const results = searchDiagnoses(value);
+      setSuggestions(results);
+      setShowSuggestions(results.length > 0);
+      setHighlightedIndex(-1);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }
+
+  const addDiagnosisWithName = useCallback(
+    function addDiagnosisWithName(name: string) {
+      const trimmed = name.trim();
       if (!trimmed) return;
 
       const alreadyExists = diagnoses.some(
@@ -270,15 +314,30 @@ export default function CaseDifferentialPage() {
         },
       ]);
       setInputValue("");
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setHighlightedIndex(-1);
     },
-    [inputValue, diagnoses]
+    [diagnoses]
   );
 
-  function updateCategory(index: number, category: string | undefined): void {
+  const addDiagnosis = useCallback(
+    function addDiagnosis() {
+      addDiagnosisWithName(inputValue);
+    },
+    [inputValue, addDiagnosisWithName]
+  );
+
+  function toggleCategory(index: number, key: string): void {
     setDiagnoses((prev) =>
-      prev.map((d, i) =>
-        i === index ? { ...d, vindicate_category: category } : d
-      )
+      prev.map((d, i) => {
+        if (i !== index) return d;
+        const current = getCategories(d);
+        const next = current.includes(key)
+          ? current.filter((k) => k !== key)
+          : [...current, key];
+        return { ...d, vindicate_categories: next, vindicate_category: undefined };
+      })
     );
   }
 
@@ -336,6 +395,38 @@ export default function CaseDifferentialPage() {
 
   function handleEnableEditing(): void {
     setSubmission((prev) => (prev ? { ...prev, status: "draft" } : prev));
+  }
+
+  function handleNoteChange(value: string) {
+    setNoteContent(value);
+    if (noteTimerRef.current) clearTimeout(noteTimerRef.current);
+    noteTimerRef.current = setTimeout(async () => {
+      setSavingNote(true);
+      await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user?.id, case_id: caseId, content: value }),
+      });
+      setSavingNote(false);
+    }, 1000);
+  }
+
+  async function handleSendQuestion() {
+    if (!questionContent.trim() || !user?.id) return;
+    setSendingQuestion(true);
+    // Save question as note content + mark as sent to instructor
+    await fetch("/api/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user.id,
+        case_id: caseId,
+        content: noteContent + (noteContent ? "\n\n---\nQuestion: " : "Question: ") + questionContent,
+        is_sent_to_instructor: true,
+      }),
+    });
+    setQuestionSent(true);
+    setSendingQuestion(false);
   }
 
   if (loading) {
@@ -429,31 +520,81 @@ export default function CaseDifferentialPage() {
         )}
       </div>
 
-      {/* Diagnosis input */}
-      <div className="flex gap-2">
-        <Input
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addDiagnosis();
-            }
-          }}
-          placeholder="Add a diagnosis..."
-          className="h-11 text-base"
-          disabled={isSubmitted}
-          autoComplete="off"
-        />
-        <Button
-          onClick={addDiagnosis}
-          disabled={!inputValue.trim() || isSubmitted}
-          size="lg"
-          className="h-11 shrink-0"
-        >
-          <Plus className="h-4 w-4" />
-          Add
-        </Button>
+      {/* Diagnosis input with autocomplete */}
+      <div className="relative">
+        <div className="flex gap-2">
+          <Input
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown" && showSuggestions) {
+                e.preventDefault();
+                setHighlightedIndex((prev) =>
+                  prev < suggestions.length - 1 ? prev + 1 : 0
+                );
+              } else if (e.key === "ArrowUp" && showSuggestions) {
+                e.preventDefault();
+                setHighlightedIndex((prev) =>
+                  prev > 0 ? prev - 1 : suggestions.length - 1
+                );
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (highlightedIndex >= 0 && showSuggestions) {
+                  addDiagnosisWithName(suggestions[highlightedIndex]);
+                } else {
+                  addDiagnosis();
+                }
+              } else if (e.key === "Escape") {
+                setShowSuggestions(false);
+              }
+            }}
+            onFocus={() => {
+              if (suggestions.length > 0) setShowSuggestions(true);
+            }}
+            onBlur={() => {
+              // Delay to allow click on suggestion
+              setTimeout(() => setShowSuggestions(false), 150);
+            }}
+            placeholder="Add a diagnosis..."
+            className="h-11 text-base"
+            disabled={isSubmitted}
+            autoComplete="off"
+          />
+          <Button
+            onClick={addDiagnosis}
+            disabled={!inputValue.trim() || isSubmitted}
+            size="lg"
+            className="h-11 shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+            Add
+          </Button>
+        </div>
+
+        {/* Autocomplete dropdown */}
+        {showSuggestions && (
+          <div
+            ref={suggestionsRef}
+            className="absolute left-0 right-12 top-full z-10 mt-1 rounded-md border bg-popover shadow-md"
+          >
+            {suggestions.map((s, i) => (
+              <button
+                key={s}
+                type="button"
+                className={cn(
+                  "w-full px-3 py-2 text-left text-sm hover:bg-accent",
+                  i === highlightedIndex && "bg-accent"
+                )}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  addDiagnosisWithName(s);
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Autosave status */}
@@ -473,7 +614,7 @@ export default function CaseDifferentialPage() {
               entry={entry}
               index={index}
               total={diagnoses.length}
-              onUpdateCategory={updateCategory}
+              onToggleCategory={toggleCategory}
               onRemove={removeDiagnosis}
               onMoveUp={moveUp}
               onMoveDown={moveDown}
@@ -498,6 +639,69 @@ export default function CaseDifferentialPage() {
       {diagnoses.length > 0 && (
         <VindicateCoverageSummary diagnoses={diagnoses} />
       )}
+
+      {/* Inline Notes */}
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-1.5 text-sm font-medium">
+                <StickyNote className="h-4 w-4" />
+                Notes
+              </label>
+              {savingNote && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Saving...
+                </span>
+              )}
+            </div>
+            <Textarea
+              value={noteContent}
+              onChange={(e) => handleNoteChange(e.target.value)}
+              placeholder="Jot down observations, reasoning, or things to remember..."
+              className="min-h-20 text-sm"
+            />
+          </div>
+
+          <div className="border-t pt-4 space-y-2">
+            <label className="flex items-center gap-1.5 text-sm font-medium">
+              <MessageSquare className="h-4 w-4" />
+              Question for Instructor
+            </label>
+            {questionSent ? (
+              <div className="flex items-center gap-2 rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
+                <p className="text-sm text-green-800 dark:text-green-200">
+                  Question sent to your instructor
+                </p>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Textarea
+                  value={questionContent}
+                  onChange={(e) => setQuestionContent(e.target.value)}
+                  placeholder="Type a question..."
+                  className="min-h-10 text-sm"
+                  rows={1}
+                />
+                <Button
+                  onClick={handleSendQuestion}
+                  disabled={!questionContent.trim() || sendingQuestion}
+                  size="sm"
+                  className="shrink-0 self-end"
+                >
+                  {sendingQuestion ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Submit button */}
       {!isSubmitted && diagnoses.length > 0 && (

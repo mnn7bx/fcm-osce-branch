@@ -322,7 +322,7 @@ export default function ReferencePage() {
   return (
     <div className="p-4 space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Reference</h1>
+        <h1 className="text-xl font-semibold">Resources</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Learning resources for differential diagnosis
         </p>

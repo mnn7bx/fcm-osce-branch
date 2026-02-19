@@ -76,8 +76,10 @@ export function compareDifferential(
 
   // Also from student's own category tags (even if diagnosis didn't match)
   for (const sd of studentDiagnoses) {
-    if (sd.vindicate_category) {
-      coveredByStudent.add(sd.vindicate_category);
+    // Support new array field and legacy single-string field
+    const cats = sd.vindicate_categories ?? (sd.vindicate_category ? [sd.vindicate_category] : []);
+    for (const cat of cats) {
+      coveredByStudent.add(cat);
     }
   }
 

@@ -42,18 +42,22 @@ export async function GET(request: NextRequest) {
 
     // Compute diagnosis frequency
     const diagnosisFrequency: Record<string, number> = {};
-    const vindicateCoverage: Record<string, number> = {};
+    // Track distinct students per VINDICATE category (prevents >100%)
+    const vindicateStudents: Record<string, Set<string>> = {};
     let cantMissHitCount = 0;
     let cantMissTotalChecked = 0;
 
     for (const sub of submissions || []) {
+      const userId: string = sub.user_id;
       const diagnoses: DiagnosisEntry[] = sub.diagnoses || [];
       for (const d of diagnoses) {
         const key = d.diagnosis.toLowerCase().trim();
         diagnosisFrequency[key] = (diagnosisFrequency[key] || 0) + 1;
-        if (d.vindicate_category) {
-          vindicateCoverage[d.vindicate_category] =
-            (vindicateCoverage[d.vindicate_category] || 0) + 1;
+        // Support new array field and legacy single-string field
+        const cats = d.vindicate_categories ?? (d.vindicate_category ? [d.vindicate_category] : []);
+        for (const cat of cats) {
+          if (!vindicateStudents[cat]) vindicateStudents[cat] = new Set();
+          vindicateStudents[cat].add(userId);
         }
       }
 
@@ -66,6 +70,12 @@ export async function GET(request: NextRequest) {
           sub.feedback.cant_miss_hit.length +
           sub.feedback.cant_miss_missed.length;
       }
+    }
+
+    // Convert sets to counts for the response
+    const vindicateCoverage: Record<string, number> = {};
+    for (const [cat, students] of Object.entries(vindicateStudents)) {
+      vindicateCoverage[cat] = students.size;
     }
 
     // Sort diagnosis frequency by count

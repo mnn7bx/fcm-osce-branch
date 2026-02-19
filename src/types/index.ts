@@ -12,7 +12,9 @@ export interface FcmUser {
 
 export interface DiagnosisEntry {
   diagnosis: string;
+  /** @deprecated Use vindicate_categories instead */
   vindicate_category?: string;
+  vindicate_categories?: string[];
   reasoning?: string;
   sort_order: number;
 }

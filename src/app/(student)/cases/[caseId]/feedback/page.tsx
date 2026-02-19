@@ -29,6 +29,28 @@ export default function FeedbackPage() {
   const [feedback, setFeedback] = useState<FeedbackResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function generateFeedback() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user!.id, case_id: caseId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to generate feedback");
+      } else if (data.feedback) {
+        setFeedback(data.feedback);
+      }
+    } catch {
+      setError("Network error. Check your connection and try again.");
+    }
+    setGenerating(false);
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -57,21 +79,7 @@ export default function FeedbackPage() {
       // Generate feedback if not cached
       if (subResult.data && !subResult.data.feedback?.ai_narrative) {
         setLoading(false);
-        setGenerating(true);
-        try {
-          const res = await fetch("/api/feedback", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: user!.id, case_id: caseId }),
-          });
-          const data = await res.json();
-          if (data.feedback) {
-            setFeedback(data.feedback);
-          }
-        } catch {
-          // silently fail, user can retry
-        }
-        setGenerating(false);
+        await generateFeedback();
       } else {
         setLoading(false);
       }
@@ -129,6 +137,21 @@ export default function FeedbackPage() {
           <CardContent className="flex items-center gap-3 p-4">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
             <span className="text-sm">Generating your feedback...</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {error && !generating && (
+        <Card className="border-destructive/50">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={generateFeedback}>
+              <RotateCcw className="h-3.5 w-3.5 mr-1" />
+              Try Again
+            </Button>
           </CardContent>
         </Card>
       )}
