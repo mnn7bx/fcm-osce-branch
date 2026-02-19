@@ -16,7 +16,23 @@ export interface DiagnosisEntry {
   vindicate_category?: string;
   vindicate_categories?: string[];
   reasoning?: string;
+  confidence?: number; // 1-5 scale
   sort_order: number;
+}
+
+export interface PracticeCase {
+  id: string;
+  source: string;
+  title: string;
+  chief_complaint: string;
+  patient_age: number | null;
+  patient_gender: string | null;
+  vitals: Record<string, string>;
+  body_system: string | null;
+  difficulty: string;
+  correct_diagnosis: string;
+  full_case_data: Record<string, unknown>;
+  has_structured_exam: boolean;
 }
 
 export interface AnswerKeyEntry {

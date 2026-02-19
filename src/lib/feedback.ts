@@ -194,13 +194,15 @@ Here are their results:
 
 ${modeInstruction}
 
-Generate 3-5 sentences of supportive, educational feedback. Follow these rules strictly:
+Generate 3-5 categorized bullet points of supportive, educational feedback. Follow these rules strictly:
 - NEVER be punitive, scored, or grading
-- Start by acknowledging what the student did well
-- Suggest 1-2 specific areas to explore further
-- If can't-miss diagnoses were missed, briefly explain WHY they matter clinically (1 sentence each)
-- End with encouragement
 - Use a warm, coach-like tone — like a supportive attending physician
-- Do NOT use bullet points or numbered lists — write in flowing prose
-- Do NOT mention scores, percentages, or grades`;
+- Do NOT mention scores, percentages, or grades
+- Each bullet must start with one of these category prefixes: "Strength:", "Consider:", or "Can't-miss:"
+- Start with at least one "Strength:" bullet acknowledging what the student did well
+- Use "Consider:" for areas to explore further
+- Use "Can't-miss:" ONLY if dangerous diagnoses were missed — briefly explain WHY they matter (1 sentence)
+- End with a "Strength:" or "Consider:" bullet that offers encouragement
+- Format each bullet as: "- Category: One sentence of feedback."
+- Keep each bullet to 1-2 sentences maximum`;
 }

@@ -31,12 +31,6 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-function formatVitals(vitals: Record<string, string>): string {
-  return Object.entries(vitals)
-    .map(([key, value]) => `${key}: ${value}`)
-    .join(" | ");
-}
-
 function SaveStatusIndicator({ status }: { status: string }) {
   if (status === "saving") {
     return (
@@ -65,75 +59,110 @@ function SaveStatusIndicator({ status }: { status: string }) {
   return null;
 }
 
-interface VindicateSelectorProps {
-  selected: string[];
-  onToggle: (key: string) => void;
-}
-
-function VindicateSelector({ selected, onToggle }: VindicateSelectorProps) {
-  return (
-    <div className="flex flex-wrap gap-1">
-      {VINDICATE_CATEGORIES.map((cat) => {
-        const isSelected = selected.includes(cat.key);
-        return (
-          <button
-            key={cat.key}
-            type="button"
-            title={cat.label}
-            onClick={() => onToggle(cat.key)}
-            className={cn(
-              "flex h-7 w-7 items-center justify-center rounded text-xs font-medium transition-colors",
-              isSelected
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            )}
-          >
-            {cat.key === "I2" ? "I" : cat.key}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-interface VindicateCoverageSummaryProps {
-  diagnoses: DiagnosisEntry[];
-}
-
 function getCategories(d: DiagnosisEntry): string[] {
   if (d.vindicate_categories && d.vindicate_categories.length > 0) {
     return d.vindicate_categories;
   }
-  // Backward compat: old single-string field
   if (d.vindicate_category) return [d.vindicate_category];
   return [];
 }
 
-function VindicateCoverageSummary({ diagnoses }: VindicateCoverageSummaryProps) {
+function BulkVindicateSection({
+  diagnoses,
+  onToggleCategory,
+}: {
+  diagnoses: DiagnosisEntry[];
+  onToggleCategory: (index: number, key: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
   const coveredKeys = new Set(diagnoses.flatMap(getCategories));
 
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-medium text-muted-foreground">
-        VINDICATE Coverage
-      </h3>
-      <div className="flex flex-wrap gap-1.5">
-        {VINDICATE_CATEGORIES.map((cat) => {
-          const isCovered = coveredKeys.has(cat.key);
-          return (
-            <Badge
-              key={cat.key}
-              variant={isCovered ? "default" : "outline"}
-              className="text-xs"
-            >
-              {cat.key === "I2" ? "I" : cat.key} — {cat.label}
-            </Badge>
-          );
-        })}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {coveredKeys.size} of {VINDICATE_CATEGORIES.length} categories covered
-      </p>
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <div>
+            <h3 className="text-sm font-medium">
+              Categorize with VINDICATE{" "}
+              <span className="text-muted-foreground font-normal">(optional)</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {coveredKeys.size} of {VINDICATE_CATEGORIES.length} categories covered
+            </p>
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          )}
+        </button>
+
+        {expanded && (
+          <div className="space-y-3 pt-2 border-t">
+            {diagnoses.map((entry, index) => (
+              <div key={`${entry.diagnosis}-${index}`} className="space-y-1">
+                <p className="text-xs font-medium truncate">
+                  {index + 1}. {entry.diagnosis}
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {VINDICATE_CATEGORIES.map((cat) => {
+                    const isSelected = getCategories(entry).includes(cat.key);
+                    return (
+                      <button
+                        key={cat.key}
+                        type="button"
+                        title={cat.label}
+                        onClick={() => onToggleCategory(index, cat.key)}
+                        className={cn(
+                          "flex h-6 w-6 items-center justify-center rounded text-xs font-medium transition-colors",
+                          isSelected
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        )}
+                      >
+                        {cat.key === "I2" ? "I" : cat.key}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ConfidenceRating({
+  value,
+  onChange,
+}: {
+  value: number | undefined;
+  onChange: (val: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-muted-foreground mr-1">Confidence:</span>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium transition-colors",
+            value === n
+              ? "bg-primary text-primary-foreground"
+              : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+          )}
+        >
+          {n}
+        </button>
+      ))}
     </div>
   );
 }
@@ -147,6 +176,7 @@ interface DiagnosisRowProps {
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   onUpdateReasoning: (index: number, reasoning: string) => void;
+  onUpdateConfidence: (index: number, confidence: number) => void;
 }
 
 function DiagnosisRow({
@@ -158,6 +188,7 @@ function DiagnosisRow({
   onMoveUp,
   onMoveDown,
   onUpdateReasoning,
+  onUpdateConfidence,
 }: DiagnosisRowProps) {
   const [showReasoning, setShowReasoning] = useState(Boolean(entry.reasoning));
 
@@ -203,9 +234,9 @@ function DiagnosisRow({
             </Button>
           </div>
         </div>
-        <VindicateSelector
-          selected={getCategories(entry)}
-          onToggle={(key) => onToggleCategory(index, key)}
+        <ConfidenceRating
+          value={entry.confidence}
+          onChange={(val) => onUpdateConfidence(index, val)}
         />
         {!showReasoning ? (
           <button
@@ -385,6 +416,12 @@ export default function CaseDifferentialPage() {
     );
   }
 
+  function updateConfidence(index: number, confidence: number): void {
+    setDiagnoses((prev) =>
+      prev.map((d, i) => (i === index ? { ...d, confidence } : d))
+    );
+  }
+
   function moveDown(index: number): void {
     setDiagnoses((prev) => {
       if (index >= prev.length - 1) return prev;
@@ -399,14 +436,12 @@ export default function CaseDifferentialPage() {
 
     setSubmitting(true);
 
-    const newStatus = isSubmitted ? "resubmitted" : "submitted";
-
     const { error } = await supabase.from("fcm_submissions").upsert(
       {
         user_id: user.id,
         case_id: caseId,
         diagnoses,
-        status: newStatus,
+        status: "submitted" as const,
         submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -418,10 +453,6 @@ export default function CaseDifferentialPage() {
     if (!error) {
       router.push(`/cases/${caseId}/feedback`);
     }
-  }
-
-  function handleEnableEditing(): void {
-    setSubmission((prev) => (prev ? { ...prev, status: "draft" } : prev));
   }
 
   function handleNoteChange(value: string) {
@@ -505,19 +536,12 @@ export default function CaseDifferentialPage() {
                 You&apos;ve submitted this case.
               </p>
             </div>
-            <div className="flex gap-2 mt-2">
+            <div className="mt-2">
               <Link href={`/cases/${caseId}/feedback`}>
                 <Button variant="outline" size="sm">
                   View Feedback
                 </Button>
               </Link>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleEnableEditing}
-              >
-                Edit &amp; Resubmit
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -538,11 +562,6 @@ export default function CaseDifferentialPage() {
         {caseData.patient_age && caseData.patient_gender && (
           <p className="text-sm text-muted-foreground">
             {caseData.patient_age}yo {caseData.patient_gender}
-          </p>
-        )}
-        {caseData.vitals && Object.keys(caseData.vitals).length > 0 && (
-          <p className="text-xs text-muted-foreground font-mono">
-            {formatVitals(caseData.vitals)}
           </p>
         )}
       </div>
@@ -629,12 +648,19 @@ export default function CaseDifferentialPage() {
         )}
       </div>
 
-      {/* Autosave status */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          {diagnoses.length} {diagnoses.length === 1 ? "diagnosis" : "diagnoses"}
-        </p>
-        <SaveStatusIndicator status={saveStatus} />
+      {/* Autosave status + guidance */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {diagnoses.length} {diagnoses.length === 1 ? "diagnosis" : "diagnoses"}
+          </p>
+          <SaveStatusIndicator status={saveStatus} />
+        </div>
+        {diagnoses.length > 0 && diagnoses.length < 8 && (
+          <p className="text-xs text-muted-foreground">
+            Aim for 8–10 diagnoses across 4+ VINDICATE categories for a thorough differential.
+          </p>
+        )}
       </div>
 
       {/* Diagnosis list */}
@@ -651,6 +677,7 @@ export default function CaseDifferentialPage() {
               onMoveUp={moveUp}
               onMoveDown={moveDown}
               onUpdateReasoning={updateReasoning}
+              onUpdateConfidence={updateConfidence}
             />
           ))}
         </div>
@@ -668,9 +695,12 @@ export default function CaseDifferentialPage() {
         </div>
       )}
 
-      {/* VINDICATE coverage summary */}
+      {/* VINDICATE bulk categorization */}
       {diagnoses.length > 0 && (
-        <VindicateCoverageSummary diagnoses={diagnoses} />
+        <BulkVindicateSection
+          diagnoses={diagnoses}
+          onToggleCategory={toggleCategory}
+        />
       )}
 
       {/* Inline Notes */}

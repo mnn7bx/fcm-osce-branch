@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:reset": "npx tsx scripts/reset-test-data.ts"
+    "db:reset": "npx tsx scripts/reset-test-data.ts",
+    "data:process": "npx tsx scripts/process-agentclinic.ts",
+    "data:diagnoses": "npx tsx scripts/expand-diagnoses.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.77.0",

@@ -21,6 +21,56 @@ import {
   Eye,
 } from "lucide-react";
 
+function DiagnosisLink({ term }: { term: string }) {
+  return (
+    <a
+      href={`https://www.statpearls.com/point-of-care/${encodeURIComponent(term)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline decoration-dotted underline-offset-2 hover:text-primary transition-colors"
+    >
+      {term}
+    </a>
+  );
+}
+
+function renderAiNarrative(text: string) {
+  // Detect bullet format: lines starting with "- "
+  const lines = text.split("\n").filter((l) => l.trim());
+  const isBulletFormat = lines.some((l) => l.trim().startsWith("- "));
+
+  if (isBulletFormat) {
+    const bullets = lines.filter((l) => l.trim().startsWith("- "));
+    return (
+      <ul className="space-y-2">
+        {bullets.map((bullet, i) => {
+          const content = bullet.replace(/^-\s*/, "");
+          // Bold the category prefix (e.g., "Strength:", "Consider:", "Can't-miss:")
+          const prefixMatch = content.match(
+            /^(Strength|Consider|Can't-miss|Can't-miss):\s*/i
+          );
+          if (prefixMatch) {
+            return (
+              <li key={i} className="text-sm leading-relaxed">
+                <span className="font-semibold">{prefixMatch[0]}</span>
+                {content.slice(prefixMatch[0].length)}
+              </li>
+            );
+          }
+          return (
+            <li key={i} className="text-sm leading-relaxed">
+              {content}
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  // Fallback: prose format (backward compat)
+  return <p className="text-sm leading-relaxed">{text}</p>;
+}
+
 export default function FeedbackPage() {
   const { caseId } = useParams<{ caseId: string }>();
   const { user } = useUser();
@@ -163,7 +213,7 @@ export default function FeedbackPage() {
           {/* Phase 1: AI Narrative */}
           <Card className="border-primary/30 bg-accent/30">
             <CardContent className="p-4">
-              <p className="text-sm leading-relaxed">{feedback.ai_narrative}</p>
+              {renderAiNarrative(feedback.ai_narrative)}
             </CardContent>
           </Card>
 
@@ -334,7 +384,7 @@ export default function FeedbackPage() {
                             className="flex items-center gap-1.5 text-xs"
                           >
                             <CheckCircle className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            <span>{d}</span>
+                            <DiagnosisLink term={d} />
                           </div>
                         ))}
                       </div>
@@ -347,7 +397,7 @@ export default function FeedbackPage() {
                             className="flex items-center gap-1.5 text-xs text-muted-foreground"
                           >
                             <XCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span>{d}</span>
+                            <DiagnosisLink term={d} />
                           </div>
                         ))}
                       </div>
@@ -371,7 +421,7 @@ export default function FeedbackPage() {
                             className="flex items-center gap-1.5 text-xs"
                           >
                             <CheckCircle className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            <span>{d}</span>
+                            <DiagnosisLink term={d} />
                           </div>
                         ))}
                       </div>
@@ -384,7 +434,7 @@ export default function FeedbackPage() {
                             className="flex items-center gap-1.5 text-xs text-amber-700"
                           >
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                            <span>{d}</span>
+                            <DiagnosisLink term={d} />
                           </div>
                         ))}
                       </div>
@@ -421,15 +471,7 @@ export default function FeedbackPage() {
           <div className="flex gap-3">
             <Button
               variant="outline"
-              className="flex-1"
-              onClick={() => router.push(`/cases/${caseId}`)}
-            >
-              <RotateCcw className="h-4 w-4 mr-1" />
-              Edit Differential
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
+              className="w-full"
               onClick={() => router.push("/notes")}
             >
               <StickyNote className="h-4 w-4 mr-1" />
