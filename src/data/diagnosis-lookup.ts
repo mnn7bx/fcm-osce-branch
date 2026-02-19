@@ -19,7 +19,7 @@ export const DIAGNOSIS_LOOKUP: DiagnosisLookupEntry[] = [
   { term: "Deep Vein Thrombosis", abbreviations: ["DVT"] },
   { term: "Atrial Fibrillation", abbreviations: ["AFib", "AF"] },
   { term: "Heart Failure", abbreviations: ["CHF", "HF", "congestive"] },
-  { term: "Pericarditis", abbreviations: [] },
+  { term: "Acute Pericarditis", abbreviations: ["pericarditis", "viral pericarditis"] },
   { term: "Myocarditis", abbreviations: [] },
   { term: "Cardiac Tamponade", abbreviations: ["tamponade"] },
   { term: "Aortic Stenosis", abbreviations: ["AS"] },
@@ -39,16 +39,20 @@ export const DIAGNOSIS_LOOKUP: DiagnosisLookupEntry[] = [
 
   // GI
   { term: "Appendicitis", abbreviations: ["appy"] },
-  { term: "Cholecystitis", abbreviations: ["gallbladder"] },
+  { term: "Acute Cholecystitis", abbreviations: ["cholecystitis", "gallbladder inflammation", "gallbladder infection"] },
   { term: "Cholelithiasis", abbreviations: ["gallstones"] },
-  { term: "Pancreatitis", abbreviations: [] },
+  { term: "Choledocholithiasis with Cholangitis", abbreviations: ["cholangitis", "CBD stone", "common bile duct stone", "ascending cholangitis", "Charcot triad"] },
+  { term: "Biliary Pancreatitis", abbreviations: ["gallstone pancreatitis"] },
+  { term: "Pancreatitis", abbreviations: ["acute pancreatitis"] },
+  { term: "Biliary Colic", abbreviations: ["gallstone pain"] },
   { term: "Small Bowel Obstruction", abbreviations: ["SBO", "bowel obstruction"] },
   { term: "Gastroesophageal Reflux Disease", abbreviations: ["GERD", "acid reflux", "reflux"] },
   { term: "Peptic Ulcer Disease", abbreviations: ["PUD", "ulcer", "gastric ulcer", "duodenal ulcer"] },
   { term: "Diverticulitis", abbreviations: [] },
   { term: "Inflammatory Bowel Disease", abbreviations: ["IBD", "Crohn's", "ulcerative colitis", "UC"] },
   { term: "GI Bleed", abbreviations: ["GIB", "upper GI bleed", "lower GI bleed", "UGIB", "LGIB"] },
-  { term: "Mesenteric Ischemia", abbreviations: [] },
+  { term: "Gastritis", abbreviations: ["stomach inflammation"] },
+  { term: "Mesenteric Ischemia", abbreviations: ["intestinal ischemia"] },
   { term: "Hepatitis", abbreviations: [] },
   { term: "Cirrhosis", abbreviations: [] },
 
@@ -56,11 +60,17 @@ export const DIAGNOSIS_LOOKUP: DiagnosisLookupEntry[] = [
   { term: "Costochondritis", abbreviations: ["costo"] },
   { term: "Musculoskeletal Pain", abbreviations: ["MSK pain", "muscle strain"] },
   { term: "Rib Fracture", abbreviations: [] },
-  { term: "Lumbar Disc Herniation", abbreviations: ["disc herniation", "herniated disc", "HNP"] },
+  { term: "Rib Contusion", abbreviations: ["chest wall injury", "chest wall contusion", "rib injury"] },
+  { term: "Lumbar Disc Herniation", abbreviations: ["disc herniation", "herniated disc", "HNP", "sciatica", "radiculopathy", "L4-L5 herniation", "L5-S1 herniation", "slipped disc"] },
   { term: "Spinal Stenosis", abbreviations: [] },
   { term: "Cauda Equina Syndrome", abbreviations: ["cauda equina", "CES"] },
   { term: "Osteoarthritis", abbreviations: ["OA"] },
-  { term: "Vertebral Compression Fracture", abbreviations: ["compression fracture", "VCF"] },
+  { term: "Piriformis Syndrome", abbreviations: ["piriformis", "deep gluteal syndrome"] },
+  { term: "Mechanical Low Back Pain", abbreviations: ["muscle strain", "lumbar strain", "back strain", "musculoskeletal back pain"] },
+  { term: "Spondylolisthesis", abbreviations: ["vertebral slip", "spondy"] },
+  { term: "Vertebral Compression Fracture", abbreviations: ["compression fracture", "VCF", "spinal fracture"] },
+  { term: "Vertebral Osteomyelitis", abbreviations: ["discitis", "spinal osteomyelitis", "vertebral infection"] },
+  { term: "Spinal Tumor/Metastasis", abbreviations: ["spinal tumor", "metastatic spine disease", "vertebral metastasis", "metastatic spinal lesion"] },
 
   // Neurologic
   { term: "Migraine", abbreviations: [] },
@@ -102,22 +112,28 @@ export const DIAGNOSIS_LOOKUP: DiagnosisLookupEntry[] = [
   { term: "Lymphoma", abbreviations: [] },
 ];
 
+export interface DiagnosisSearchResult {
+  term: string;
+  matchedAbbrev?: string;
+}
+
 /**
  * Search diagnoses by term or abbreviation (case-insensitive substring match).
- * Returns up to `limit` results.
+ * Returns up to `limit` results with optional matched abbreviation.
  */
-export function searchDiagnoses(query: string, limit = 8): string[] {
+export function searchDiagnoses(query: string, limit = 8): DiagnosisSearchResult[] {
   const q = query.toLowerCase().trim();
   if (!q) return [];
 
-  const results: { term: string; score: number }[] = [];
+  const results: { term: string; matchedAbbrev?: string; score: number }[] = [];
 
   for (const entry of DIAGNOSIS_LOOKUP) {
     const termLower = entry.term.toLowerCase();
 
     // Exact abbreviation match gets highest priority
-    if (entry.abbreviations.some((a) => a.toLowerCase() === q)) {
-      results.push({ term: entry.term, score: 3 });
+    const exactAbbrev = entry.abbreviations.find((a) => a.toLowerCase() === q);
+    if (exactAbbrev) {
+      results.push({ term: entry.term, matchedAbbrev: exactAbbrev, score: 3 });
       continue;
     }
 
@@ -128,8 +144,9 @@ export function searchDiagnoses(query: string, limit = 8): string[] {
     }
 
     // Abbreviation starts with query
-    if (entry.abbreviations.some((a) => a.toLowerCase().startsWith(q))) {
-      results.push({ term: entry.term, score: 1.5 });
+    const startsAbbrev = entry.abbreviations.find((a) => a.toLowerCase().startsWith(q));
+    if (startsAbbrev) {
+      results.push({ term: entry.term, matchedAbbrev: startsAbbrev, score: 1.5 });
       continue;
     }
 
@@ -140,13 +157,14 @@ export function searchDiagnoses(query: string, limit = 8): string[] {
     }
 
     // Substring match on abbreviation
-    if (entry.abbreviations.some((a) => a.toLowerCase().includes(q))) {
-      results.push({ term: entry.term, score: 0.5 });
+    const subAbbrev = entry.abbreviations.find((a) => a.toLowerCase().includes(q));
+    if (subAbbrev) {
+      results.push({ term: entry.term, matchedAbbrev: subAbbrev, score: 0.5 });
     }
   }
 
   return results
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map((r) => r.term);
+    .map((r) => ({ term: r.term, matchedAbbrev: r.matchedAbbrev }));
 }

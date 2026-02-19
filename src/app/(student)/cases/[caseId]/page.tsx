@@ -7,7 +7,7 @@ import { useUser } from "@/lib/user-context";
 import { useAutosave } from "@/lib/use-autosave";
 import type { FcmCase, FcmSubmission, FcmNote, DiagnosisEntry } from "@/types";
 import { VINDICATE_CATEGORIES } from "@/types";
-import { searchDiagnoses } from "@/data/diagnosis-lookup";
+import { searchDiagnoses, type DiagnosisSearchResult } from "@/data/diagnosis-lookup";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -146,6 +146,7 @@ interface DiagnosisRowProps {
   onRemove: (index: number) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
+  onUpdateReasoning: (index: number, reasoning: string) => void;
 }
 
 function DiagnosisRow({
@@ -156,7 +157,10 @@ function DiagnosisRow({
   onRemove,
   onMoveUp,
   onMoveDown,
+  onUpdateReasoning,
 }: DiagnosisRowProps) {
+  const [showReasoning, setShowReasoning] = useState(Boolean(entry.reasoning));
+
   return (
     <Card className="py-3">
       <CardContent className="px-4 py-0 space-y-2">
@@ -203,6 +207,23 @@ function DiagnosisRow({
           selected={getCategories(entry)}
           onToggle={(key) => onToggleCategory(index, key)}
         />
+        {!showReasoning ? (
+          <button
+            type="button"
+            onClick={() => setShowReasoning(true)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Why this diagnosis?
+          </button>
+        ) : (
+          <Textarea
+            value={entry.reasoning || ""}
+            onChange={(e) => onUpdateReasoning(index, e.target.value)}
+            placeholder="What about this patient makes you consider this? (optional)"
+            className="min-h-16 text-xs"
+            rows={2}
+          />
+        )}
       </CardContent>
     </Card>
   );
@@ -217,7 +238,7 @@ export default function CaseDifferentialPage() {
   const [submission, setSubmission] = useState<FcmSubmission | null>(null);
   const [diagnoses, setDiagnoses] = useState<DiagnosisEntry[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<DiagnosisSearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -285,7 +306,7 @@ export default function CaseDifferentialPage() {
 
   function handleInputChange(value: string) {
     setInputValue(value);
-    if (value.trim().length > 0) {
+    if (value.trim().length >= 2) {
       const results = searchDiagnoses(value);
       setSuggestions(results);
       setShowSuggestions(results.length > 0);
@@ -356,6 +377,12 @@ export default function CaseDifferentialPage() {
       [next[index - 1], next[index]] = [next[index], next[index - 1]];
       return next.map((d, i) => ({ ...d, sort_order: i }));
     });
+  }
+
+  function updateReasoning(index: number, reasoning: string): void {
+    setDiagnoses((prev) =>
+      prev.map((d, i) => (i === index ? { ...d, reasoning } : d))
+    );
   }
 
   function moveDown(index: number): void {
@@ -540,7 +567,7 @@ export default function CaseDifferentialPage() {
               } else if (e.key === "Enter") {
                 e.preventDefault();
                 if (highlightedIndex >= 0 && showSuggestions) {
-                  addDiagnosisWithName(suggestions[highlightedIndex]);
+                  addDiagnosisWithName(suggestions[highlightedIndex].term);
                 } else {
                   addDiagnosis();
                 }
@@ -579,7 +606,7 @@ export default function CaseDifferentialPage() {
           >
             {suggestions.map((s, i) => (
               <button
-                key={s}
+                key={s.term}
                 type="button"
                 className={cn(
                   "w-full px-3 py-2 text-left text-sm hover:bg-accent",
@@ -587,10 +614,15 @@ export default function CaseDifferentialPage() {
                 )}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  addDiagnosisWithName(s);
+                  addDiagnosisWithName(s.term);
                 }}
               >
-                {s}
+                {s.term}
+                {s.matchedAbbrev && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">
+                    ({s.matchedAbbrev})
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -618,6 +650,7 @@ export default function CaseDifferentialPage() {
               onRemove={removeDiagnosis}
               onMoveUp={moveUp}
               onMoveDown={moveDown}
+              onUpdateReasoning={updateReasoning}
             />
           ))}
         </div>

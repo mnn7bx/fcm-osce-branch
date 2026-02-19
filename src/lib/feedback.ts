@@ -1,6 +1,39 @@
 import type { DiagnosisEntry, AnswerKeyEntry, FeedbackResult } from "@/types";
 
 /**
+ * Compute Levenshtein edit distance between two strings.
+ */
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/**
+ * Fuzzy match: strings of length >= 5 with edit distance <= 2,
+ * or normalized similarity > 0.85.
+ */
+function fuzzyMatch(a: string, b: string): boolean {
+  const la = a.toLowerCase().trim();
+  const lb = b.toLowerCase().trim();
+  if (la === lb) return true;
+  const maxLen = Math.max(la.length, lb.length);
+  if (maxLen < 5) return false;
+  const dist = levenshtein(la, lb);
+  return dist <= 2 || (1 - dist / maxLen) > 0.85;
+}
+
+/**
  * Step 1: Deterministic comparison — match student diagnoses against answer key
  */
 export function compareDifferential(
@@ -18,9 +51,13 @@ export function compareDifferential(
     }
   }
 
+  // Collect all alias strings for fuzzy matching
+  const allAliasStrings = Array.from(aliasMap.keys());
+
   // Match each student diagnosis
   const matched = new Set<string>(); // answer key diagnosis names that were matched
   const unmatched: string[] = [];
+  const fuzzyMatched: { student: string; matched_to: string }[] = [];
 
   for (const sd of studentDiagnoses) {
     const key = normalize(sd.diagnosis);
@@ -28,7 +65,20 @@ export function compareDifferential(
     if (match) {
       matched.add(match.diagnosis);
     } else {
-      unmatched.push(sd.diagnosis);
+      // Try fuzzy match against all alias strings
+      let found = false;
+      for (const alias of allAliasStrings) {
+        if (fuzzyMatch(key, alias)) {
+          const fuzzyEntry = aliasMap.get(alias)!;
+          matched.add(fuzzyEntry.diagnosis);
+          fuzzyMatched.push({ student: sd.diagnosis, matched_to: fuzzyEntry.diagnosis });
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        unmatched.push(sd.diagnosis);
+      }
     }
   }
 
@@ -96,6 +146,7 @@ export function compareDifferential(
     cant_miss_missed,
     vindicate_coverage,
     unmatched,
+    fuzzy_matched: fuzzyMatched.length > 0 ? fuzzyMatched : undefined,
     feedback_mode: "combined",
   };
 }
@@ -138,6 +189,7 @@ Here are their results:
 - Common diagnoses they missed: ${comparison.common_missed.join(", ") || "none"}
 - Can't-miss diagnoses they got: ${comparison.cant_miss_hit.join(", ") || "none"}
 - Can't-miss diagnoses they missed: ${comparison.cant_miss_missed.join(", ") || "none"}
+- Diagnoses matched via close spelling: ${comparison.fuzzy_matched?.map((f) => `"${f.student}" → ${f.matched_to}`).join(", ") || "none"}
 - Additional diagnoses they listed that weren't in the answer key: ${comparison.unmatched.join(", ") || "none"}
 
 ${modeInstruction}

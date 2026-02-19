@@ -118,6 +118,7 @@ export interface FeedbackResult {
   cant_miss_missed: string[];
   vindicate_coverage: Record<string, boolean>;
   unmatched: string[];
+  fuzzy_matched?: { student: string; matched_to: string }[];
   ai_narrative: string;
   feedback_mode: string;
 }
