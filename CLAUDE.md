@@ -36,7 +36,7 @@ FCM Companion is a mobile-first web app for UVA medical students to practice dif
 - Practice cases stored in localStorage (no Supabase FK dependency)
 - Practice mode toggle: "Differential Only" (default) vs "Full Case" — persisted in localStorage (`practice-mode` key)
 - Topic voting: stored in `fcm_notes` with `[TOPIC VOTE]` prefix and `is_sent_to_instructor: true`
-- Responsive layout: mobile bottom nav + desktop sidebar (md breakpoint)
+- Responsive layout: mobile bottom nav + desktop sidebar (md breakpoint). Sidebar uses `h-dvh sticky top-0` to stay viewport-pinned with user info always visible.
 - Student nav: Cases, Try a Case, Notes, Resources (OSCE hidden from nav, still accessible via `/osce`)
 
 - `src/sw.ts` — Serwist service worker for PWA
