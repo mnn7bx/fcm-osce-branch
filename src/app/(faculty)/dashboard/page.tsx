@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/lib/user-context";
 import type { FcmCase } from "@/types";
@@ -45,6 +46,7 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const { user } = useUser();
+  const router = useRouter();
   const [cases, setCases] = useState<FcmCase[]>([]);
   const [selectedCaseId, setSelectedCaseId] = useState<string>("");
   const [data, setData] = useState<DashboardData | null>(null);
@@ -122,7 +124,7 @@ export default function DashboardPage() {
         <Button
           variant="outline"
           disabled={!selectedCaseId || !data || data.submission_count === 0}
-          onClick={() => window.location.href = `/present?case_id=${selectedCaseId}`}
+          onClick={() => router.push(`/present?case_id=${selectedCaseId}`)}
         >
           <Presentation className="h-4 w-4 mr-1" />
           Present
