@@ -7,6 +7,7 @@ import type { FcmCase } from "@/types";
 import { VINDICATE_CATEGORIES } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,10 @@ import {
   AlertTriangle,
   MessageSquare,
   Loader2,
+  Presentation,
+  Lightbulb,
+  SmilePlus,
+  PenLine,
 } from "lucide-react";
 
 interface DashboardData {
@@ -29,6 +34,11 @@ interface DashboardData {
   diagnosis_frequency: { diagnosis: string; count: number }[];
   vindicate_coverage: Record<string, number>;
   cant_miss_rate: number | null;
+  cant_miss_details: { diagnosis: string; hit_count: number; total: number }[];
+  vindicate_gaps: string[];
+  sentiment_summary: Record<string, number>;
+  suggested_focus: string[];
+  session_captures: string[];
   flagged_questions: { content: string; student: string }[];
   topic_votes: Record<string, number>;
 }
@@ -95,19 +105,29 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Case selector */}
-      <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
-        <SelectTrigger className="w-full md:w-96">
-          <SelectValue placeholder="Select a case" />
-        </SelectTrigger>
-        <SelectContent>
-          {cases.map((c) => (
-            <SelectItem key={c.id} value={c.id}>
-              {c.chief_complaint}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Case selector + Present button */}
+      <div className="flex items-center gap-3">
+        <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
+          <SelectTrigger className="w-full md:w-96">
+            <SelectValue placeholder="Select a case" />
+          </SelectTrigger>
+          <SelectContent>
+            {cases.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.chief_complaint}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          disabled={!selectedCaseId || !data || data.submission_count === 0}
+          onClick={() => window.location.href = `/present?case_id=${selectedCaseId}`}
+        >
+          <Presentation className="h-4 w-4 mr-1" />
+          Present
+        </Button>
+      </div>
 
       {loadingData && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -118,6 +138,28 @@ export default function DashboardPage() {
 
       {data && !loadingData && (
         <>
+          {/* Suggested Focus */}
+          {data.suggested_focus.length > 0 && (
+            <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-amber-600" />
+                  Suggested Focus
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-1.5">
+                  {data.suggested_focus.map((focus, i) => (
+                    <li key={i} className="text-sm flex items-start gap-2">
+                      <span className="text-amber-600 mt-0.5 shrink-0">-</span>
+                      {focus}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Summary cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card>
@@ -181,6 +223,42 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Student Confidence */}
+          {(data.sentiment_summary.confident > 0 ||
+            data.sentiment_summary.uncertain > 0 ||
+            data.sentiment_summary.lost > 0) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <SmilePlus className="h-4 w-4" />
+                  Student Confidence
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4">
+                  {[
+                    { key: "confident", label: "Confident", color: "bg-green-500" },
+                    { key: "uncertain", label: "Uncertain", color: "bg-amber-500" },
+                    { key: "lost", label: "Lost", color: "bg-red-500" },
+                  ].map(({ key, label, color }) => {
+                    const count = data.sentiment_summary[key] || 0;
+                    const total = Object.values(data.sentiment_summary).reduce((a, b) => a + b, 0);
+                    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                    return (
+                      <div key={key} className="flex-1 text-center">
+                        <div className="h-2 rounded-full bg-muted overflow-hidden mb-2">
+                          <div className={cn("h-full rounded-full", color)} style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-sm font-medium">{count}</p>
+                        <p className="text-xs text-muted-foreground">{label}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Diagnosis Heat Map */}
           <Card>
@@ -320,6 +398,33 @@ export default function DashboardPage() {
                       <p>{q.content}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         — {q.student}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Student Takeaways */}
+          {data.session_captures && data.session_captures.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <PenLine className="h-4 w-4" />
+                  Student Takeaways
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {data.session_captures.map((takeaway, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg border p-3 text-sm"
+                    >
+                      <p>{takeaway}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        — Anonymous
                       </p>
                     </div>
                   ))}

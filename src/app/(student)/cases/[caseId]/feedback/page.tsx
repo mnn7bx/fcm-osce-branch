@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/lib/user-context";
-import type { FcmCase, FcmSubmission, FeedbackResult } from "@/types";
+import type { FcmCase, FcmSubmission, FeedbackResult, AnswerKeyEntry } from "@/types";
 import { VINDICATE_CATEGORIES } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import {
   Brain,
   Send,
   MessageSquare,
+  BookOpen,
 } from "lucide-react";
 
 function DiagnosisLink({ term }: { term: string }) {
@@ -36,6 +37,16 @@ function DiagnosisLink({ term }: { term: string }) {
     >
       {term}
     </a>
+  );
+}
+
+function VindicateBadge({ category }: { category: string }) {
+  const cat = VINDICATE_CATEGORIES.find((c) => c.key === category);
+  if (!cat) return null;
+  return (
+    <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">
+      {cat.key === "I2" ? "I" : cat.key}
+    </span>
   );
 }
 
@@ -54,6 +65,11 @@ export default function FeedbackPage() {
   const [topicFreeText, setTopicFreeText] = useState("");
   const [topicsSent, setTopicsSent] = useState(false);
   const [sendingTopics, setSendingTopics] = useState(false);
+  // Quick takeaway
+  const [takeaway, setTakeaway] = useState("");
+  const [takeawaySaved, setTakeawaySaved] = useState(false);
+  const [savingTakeaway, setSavingTakeaway] = useState(false);
+  const [sessionDatePast, setSessionDatePast] = useState(false);
 
   async function generateFeedback() {
     setGenerating(true);
@@ -80,7 +96,7 @@ export default function FeedbackPage() {
     if (!user) return;
 
     async function fetchData() {
-      const [caseResult, subResult, noteResult] = await Promise.all([
+      const [caseResult, subResult, noteResult, captureResult] = await Promise.all([
         supabase.from("fcm_cases").select("*").eq("id", caseId).single(),
         supabase
           .from("fcm_submissions")
@@ -95,13 +111,42 @@ export default function FeedbackPage() {
           .eq("case_id", caseId)
           .eq("is_sent_to_instructor", true)
           .maybeSingle(),
+        supabase
+          .from("fcm_session_captures")
+          .select("takeaway")
+          .eq("user_id", user!.id)
+          .eq("case_id", caseId)
+          .maybeSingle(),
       ]);
 
-      if (caseResult.data) setCaseData(caseResult.data);
+      if (caseResult.data) {
+        setCaseData(caseResult.data);
+        // Check if session date is today or past
+        // Look up schedule for this case
+        const { data: scheduleData } = await supabase
+          .from("fcm_schedule")
+          .select("session_date")
+          .eq("case_id", caseId)
+          .limit(1)
+          .maybeSingle();
+        if (scheduleData?.session_date) {
+          const sessionDate = new Date(scheduleData.session_date);
+          setSessionDatePast(sessionDate <= new Date());
+        } else {
+          // No schedule — always show
+          setSessionDatePast(true);
+        }
+      }
 
       // Check if topic vote already sent
       if (noteResult.data?.content?.includes("[TOPIC VOTE]")) {
         setTopicsSent(true);
+      }
+
+      // Check if takeaway already saved
+      if (captureResult.data?.takeaway) {
+        setTakeaway(captureResult.data.takeaway);
+        setTakeawaySaved(true);
       }
 
       if (subResult.data) {
@@ -149,6 +194,32 @@ export default function FeedbackPage() {
   const coveredCount = feedback
     ? Object.values(feedback.vindicate_coverage).filter(Boolean).length
     : 0;
+
+  // Build reverse mapping: VINDICATE category → student diagnoses
+  const categoryToDiagnoses: Record<string, string[]> = {};
+  if (feedback?.diagnosis_categories) {
+    for (const [diag, cat] of Object.entries(feedback.diagnosis_categories)) {
+      if (!categoryToDiagnoses[cat]) categoryToDiagnoses[cat] = [];
+      categoryToDiagnoses[cat].push(diag);
+    }
+  }
+
+  // Group answer key by tier for expert view
+  const answerKey = caseData?.differential_answer_key || [];
+  const matchedDiagnoses = new Set([
+    ...((feedback?.common_hit) || []),
+    ...((feedback?.cant_miss_hit) || []),
+    ...((feedback?.tiered_differential.most_likely) || []),
+    ...((feedback?.tiered_differential.moderate) || []),
+    ...((feedback?.tiered_differential.less_likely) || []),
+    ...((feedback?.tiered_differential.unlikely_important) || []),
+  ]);
+  const tierOrder: { key: AnswerKeyEntry["tier"]; label: string }[] = [
+    { key: "most_likely", label: "Most Likely" },
+    { key: "moderate", label: "Moderate Likelihood" },
+    { key: "less_likely", label: "Less Likely" },
+    { key: "unlikely_important", label: "Unlikely but Important" },
+  ];
 
   return (
     <div className="p-4 space-y-6">
@@ -202,7 +273,7 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
 
-          {/* Phase 1: VINDICATE Coverage Grid */}
+          {/* Phase 1: VINDICATE Coverage Grid with diagnosis labels */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">
@@ -213,27 +284,39 @@ export default function FeedbackPage() {
               <div className="grid grid-cols-3 gap-2">
                 {VINDICATE_CATEGORIES.map((cat) => {
                   const covered = feedback.vindicate_coverage[cat.key];
+                  const diagsInCat = categoryToDiagnoses[cat.key] || [];
                   return (
                     <div
                       key={cat.key}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg border p-2 text-xs",
+                        "flex flex-col gap-1 rounded-lg border p-2 text-xs",
                         covered
                           ? "border-primary/30 bg-accent/50 text-accent-foreground"
                           : "border-border text-muted-foreground"
                       )}
                     >
-                      <span
-                        className={cn(
-                          "flex h-6 w-6 items-center justify-center rounded-md text-xs font-medium",
-                          covered
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {cat.key === "I2" ? "I" : cat.key}
-                      </span>
-                      <span className="truncate">{cat.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "flex h-6 w-6 items-center justify-center rounded-md text-xs font-medium shrink-0",
+                            covered
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {cat.key === "I2" ? "I" : cat.key}
+                        </span>
+                        <span className="truncate">{cat.label}</span>
+                      </div>
+                      {diagsInCat.length > 0 && (
+                        <div className="pl-8 space-y-0.5">
+                          {diagsInCat.map((d) => (
+                            <p key={d} className="text-[10px] text-muted-foreground truncate">
+                              {d}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -322,7 +405,7 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
 
-          {/* Phase 1: Summary counts (without revealing missed names) */}
+          {/* Phase 1: Summary counts */}
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <CardContent className="p-4 text-center">
@@ -437,7 +520,7 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
 
-          {/* Phase 2 toggle */}
+          {/* Phase 2 toggle — Expert Differential */}
           {!showExpert ? (
             <Button
               onClick={() => setShowExpert(true)}
@@ -449,81 +532,76 @@ export default function FeedbackPage() {
             </Button>
           ) : (
             <>
-              {/* Phase 2: Full Common + Can't-Miss hit/missed lists */}
-              <div className="grid grid-cols-2 gap-3">
-                <Card>
-                  <CardHeader className="pb-1">
-                    <CardTitle className="text-sm">Common</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {feedback.common_hit.length > 0 && (
-                      <div className="space-y-1">
-                        {feedback.common_hit.map((d) => (
-                          <div
-                            key={d}
-                            className="flex items-center gap-1.5 text-xs"
-                          >
-                            <CheckCircle className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            <DiagnosisLink term={d} />
-                          </div>
-                        ))}
+              {/* Enhanced expert view: full answer key by tier */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Expert Differential
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {tierOrder.map(({ key: tier, label: tierLabel }) => {
+                    const entries = answerKey.filter((e) => e.tier === tier);
+                    if (entries.length === 0) return null;
+                    return (
+                      <div key={tier}>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">
+                          {tierLabel}
+                        </p>
+                        <div className="space-y-1.5">
+                          {entries.map((entry) => {
+                            const isMatched = matchedDiagnoses.has(entry.diagnosis);
+                            return (
+                              <div
+                                key={entry.diagnosis}
+                                className="flex items-center gap-2 text-xs"
+                              >
+                                {isMatched ? (
+                                  <CheckCircle className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                                ) : (
+                                  <XCircle className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+                                )}
+                                <DiagnosisLink term={entry.diagnosis} />
+                                <VindicateBadge category={entry.vindicate_category} />
+                                {entry.is_common && (
+                                  <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                    common
+                                  </Badge>
+                                )}
+                                {entry.is_cant_miss && (
+                                  <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                                    can&apos;t-miss
+                                  </Badge>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    )}
-                    {feedback.common_missed.length > 0 && (
-                      <div className="space-y-1">
-                        {feedback.common_missed.map((d) => (
-                          <div
-                            key={d}
-                            className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                          >
-                            <XCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <DiagnosisLink term={d} />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                    );
+                  })}
 
-                <Card>
-                  <CardHeader className="pb-1">
-                    <CardTitle className="text-sm flex items-center gap-1">
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                      Can&apos;t-Miss
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {feedback.cant_miss_hit.length > 0 && (
-                      <div className="space-y-1">
-                        {feedback.cant_miss_hit.map((d) => (
-                          <div
-                            key={d}
-                            className="flex items-center gap-1.5 text-xs"
-                          >
-                            <CheckCircle className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            <DiagnosisLink term={d} />
-                          </div>
+                  {/* Teaching Points */}
+                  {caseData?.key_teaching_points && caseData.key_teaching_points.length > 0 && (
+                    <div className="pt-3 border-t">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        Key Teaching Points
+                      </p>
+                      <ul className="space-y-1.5 text-xs">
+                        {caseData.key_teaching_points.map((point, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-primary mt-0.5 shrink-0">-</span>
+                            <span>{point}</span>
+                          </li>
                         ))}
-                      </div>
-                    )}
-                    {feedback.cant_miss_missed.length > 0 && (
-                      <div className="space-y-1">
-                        {feedback.cant_miss_missed.map((d) => (
-                          <div
-                            key={d}
-                            className="flex items-center gap-1.5 text-xs text-amber-700"
-                          >
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                            <DiagnosisLink term={d} />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-              {/* Phase 2: Fuzzy match corrections */}
+              {/* Fuzzy match corrections */}
               {feedback.fuzzy_matched && feedback.fuzzy_matched.length > 0 && (
                 <Card>
                   <CardHeader className="pb-1">
@@ -545,6 +623,64 @@ export default function FeedbackPage() {
                 </Card>
               )}
             </>
+          )}
+
+          {/* Quick Takeaway */}
+          {sessionDatePast && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <StickyNote className="h-4 w-4" />
+                  Quick Takeaway
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {takeawaySaved ? (
+                  <div className="flex items-center gap-2 rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3">
+                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
+                    <p className="text-sm text-green-800 dark:text-green-200">
+                      Takeaway saved: &ldquo;{takeaway}&rdquo;
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <Textarea
+                      value={takeaway}
+                      onChange={(e) => setTakeaway(e.target.value)}
+                      placeholder="What's one thing you'll remember from today's session?"
+                      className="min-h-16 text-sm"
+                      rows={2}
+                    />
+                    <Button
+                      size="sm"
+                      disabled={!takeaway.trim() || savingTakeaway}
+                      onClick={async () => {
+                        if (!user?.id) return;
+                        setSavingTakeaway(true);
+                        await fetch("/api/session-captures", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            user_id: user.id,
+                            case_id: caseId,
+                            takeaway: takeaway.trim(),
+                          }),
+                        });
+                        setTakeawaySaved(true);
+                        setSavingTakeaway(false);
+                      }}
+                    >
+                      {savingTakeaway ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                      Save
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Actions */}

@@ -44,28 +44,30 @@ export function generateCards(
     answer: caseData.chief_complaint,
   });
 
-  // 2. True/False: "Was [diagnosis] in your differential?"
-  const allMissed = [...feedback.common_missed, ...feedback.cant_miss_missed];
-  const shuffledStudent = shuffle([...studentDiagnoses]).slice(0, 2);
-  const shuffledMissed = shuffle([...allMissed]).slice(0, 1);
-  for (const d of shuffledStudent) {
+  // 2. True/False using answer key tiers
+  if (feedback.tiered_differential.most_likely.length > 0) {
+    const target = feedback.tiered_differential.most_likely[0];
     cards.push({
       type: "true_false",
-      statement: `"${d}" was in your differential`,
+      statement: `"${target}" is the most likely diagnosis for "${caseData.chief_complaint}"`,
       correct: true,
-      explanation: `Yes — you included ${d} in your submission.`,
-    });
-  }
-  for (const d of shuffledMissed) {
-    cards.push({
-      type: "true_false",
-      statement: `"${d}" was in your differential`,
-      correct: false,
-      explanation: `No — ${d} was a diagnosis you missed. Remember it for next time.`,
+      explanation: `Yes — ${target} is ranked as the most likely diagnosis in the expert differential.`,
     });
   }
 
-  // 3. Can't-miss identification (multiple choice)
+  // False T/F: a less likely diagnosis presented as most likely
+  const lessLikely = [...feedback.tiered_differential.less_likely, ...feedback.tiered_differential.unlikely_important];
+  if (lessLikely.length > 0) {
+    const decoy = shuffle(lessLikely)[0];
+    cards.push({
+      type: "true_false",
+      statement: `"${decoy}" is the most likely diagnosis for "${caseData.chief_complaint}"`,
+      correct: false,
+      explanation: `No — ${decoy} is considered less likely. It's important to consider but not the top diagnosis.`,
+    });
+  }
+
+  // 3. Can't-miss identification (multiple choice / differentiator card)
   const allCantMiss = [...feedback.cant_miss_hit, ...feedback.cant_miss_missed];
   if (allCantMiss.length > 0) {
     const target = allCantMiss[0];
@@ -116,12 +118,25 @@ export function generateCards(
     }
   }
 
-  // 5. How many diagnoses did you submit? (recall)
-  cards.push({
-    type: "recall",
-    question: "How many diagnoses did you include in your differential?",
-    answer: `${studentDiagnoses.length} diagnoses`,
-  });
+  // 5. VINDICATE gap card — which category did you NOT cover?
+  const missedCats = VINDICATE_CATEGORIES.filter(
+    (cat) => !feedback.vindicate_coverage[cat.key]
+  );
+  const coveredCats = VINDICATE_CATEGORIES.filter(
+    (cat) => feedback.vindicate_coverage[cat.key]
+  );
+  if (missedCats.length > 0 && coveredCats.length >= 2) {
+    const target = missedCats[0];
+    const distractors = shuffle(coveredCats).slice(0, 3);
+    const options = shuffle([target, ...distractors]).map((c) => c.label);
+    cards.push({
+      type: "multiple_choice",
+      question: "Which VINDICATE category did you NOT cover in your differential?",
+      options,
+      correctIndex: options.indexOf(target.label),
+      explanation: `You didn't cover ${target.label} (${target.key}). Consider what ${target.label.toLowerCase()} causes could explain this chief complaint.`,
+    });
+  }
 
   // 6. Missed diagnosis reveal (if any missed)
   if (feedback.cant_miss_missed.length > 0) {
@@ -223,27 +238,35 @@ export function generateQuickCards(
     }
   }
 
-  // Card 4: Missed diagnosis reveal OR T/F about a submitted diagnosis
-  const allMissed = [...feedback.cant_miss_missed, ...feedback.common_missed];
-  if (allMissed.length > 0) {
+  // Card 4: Differentiator — VINDICATE gap or missed diagnosis
+  const missedCats = VINDICATE_CATEGORIES.filter(
+    (cat) => !feedback.vindicate_coverage[cat.key]
+  );
+  const coveredCats = VINDICATE_CATEGORIES.filter(
+    (cat) => feedback.vindicate_coverage[cat.key]
+  );
+  if (missedCats.length > 0 && coveredCats.length >= 2) {
+    const target = missedCats[0];
+    const distractors = shuffle(coveredCats).slice(0, 3);
+    const options = shuffle([target, ...distractors]).map((c) => c.label);
     cards.push({
-      type: "recall",
-      question:
-        feedback.cant_miss_missed.length > 0
-          ? "Which can't-miss diagnosis did you miss? (Tap to reveal)"
-          : "Name a common diagnosis you missed. (Tap to reveal)",
-      answer: allMissed.slice(0, 3).join(", "),
+      type: "multiple_choice",
+      question: "Which VINDICATE category did you NOT cover?",
+      options,
+      correctIndex: options.indexOf(target.label),
+      explanation: `You didn't cover ${target.label} (${target.key}). Consider what ${target.label.toLowerCase()} causes could explain this presentation.`,
     });
   } else {
-    // No missed diagnoses — T/F about a diagnosis they did submit
-    const studentDiagnoses = submission.diagnoses.map((d) => d.diagnosis);
-    if (studentDiagnoses.length > 0) {
-      const d = shuffle(studentDiagnoses)[0];
+    // Fallback: missed diagnosis reveal
+    const allMissed = [...feedback.cant_miss_missed, ...feedback.common_missed];
+    if (allMissed.length > 0) {
       cards.push({
-        type: "true_false",
-        statement: `"${d}" was in your differential`,
-        correct: true,
-        explanation: `Yes — you included ${d} in your submission. Nice recall!`,
+        type: "recall",
+        question:
+          feedback.cant_miss_missed.length > 0
+            ? "Which can't-miss diagnosis did you miss? (Tap to reveal)"
+            : "Name a common diagnosis you missed. (Tap to reveal)",
+        answer: allMissed.slice(0, 3).join(", "),
       });
     }
   }

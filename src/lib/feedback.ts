@@ -1,4 +1,5 @@
 import type { DiagnosisEntry, AnswerKeyEntry, FeedbackResult } from "@/types";
+import { DIAGNOSIS_LOOKUP } from "@/data/diagnosis-lookup";
 
 /**
  * Compute Levenshtein edit distance between two strings.
@@ -34,6 +35,23 @@ function fuzzyMatch(a: string, b: string): boolean {
 }
 
 /**
+ * Look up VINDICATE category for a diagnosis name from the vocabulary.
+ */
+function lookupVindicateCategory(diagnosisName: string): string | undefined {
+  const norm = diagnosisName.toLowerCase().trim();
+  for (const entry of DIAGNOSIS_LOOKUP) {
+    if (entry.term.toLowerCase().trim() === norm) {
+      return entry.vindicate_category;
+    }
+    // Check abbreviations too
+    if (entry.abbreviations.some((a) => a.toLowerCase().trim() === norm)) {
+      return entry.vindicate_category;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Step 1: Deterministic comparison — match student diagnoses against answer key
  */
 export function compareDifferential(
@@ -59,11 +77,15 @@ export function compareDifferential(
   const unmatched: string[] = [];
   const fuzzyMatched: { student: string; matched_to: string }[] = [];
 
+  // Track which answer key entry each student diagnosis matched to
+  const studentToAnswerKey = new Map<string, AnswerKeyEntry>();
+
   for (const sd of studentDiagnoses) {
     const key = normalize(sd.diagnosis);
     const match = aliasMap.get(key);
     if (match) {
       matched.add(match.diagnosis);
+      studentToAnswerKey.set(sd.diagnosis, match);
     } else {
       // Try fuzzy match against all alias strings
       let found = false;
@@ -72,6 +94,7 @@ export function compareDifferential(
           const fuzzyEntry = aliasMap.get(alias)!;
           matched.add(fuzzyEntry.diagnosis);
           fuzzyMatched.push({ student: sd.diagnosis, matched_to: fuzzyEntry.diagnosis });
+          studentToAnswerKey.set(sd.diagnosis, fuzzyEntry);
           found = true;
           break;
         }
@@ -138,6 +161,22 @@ export function compareDifferential(
     vindicate_coverage[cat] = coveredByStudent.has(cat);
   }
 
+  // Auto-VINDICATE mapping: map each student diagnosis to its category
+  const diagnosis_categories: Record<string, string> = {};
+  for (const sd of studentDiagnoses) {
+    const answerKeyEntry = studentToAnswerKey.get(sd.diagnosis);
+    if (answerKeyEntry) {
+      // Use the answer key's category
+      diagnosis_categories[sd.diagnosis] = answerKeyEntry.vindicate_category;
+    } else {
+      // Look up in vocabulary
+      const vocabCat = lookupVindicateCategory(sd.diagnosis);
+      if (vocabCat) {
+        diagnosis_categories[sd.diagnosis] = vocabCat;
+      }
+    }
+  }
+
   return {
     tiered_differential: tiered,
     common_hit,
@@ -145,6 +184,7 @@ export function compareDifferential(
     cant_miss_hit,
     cant_miss_missed,
     vindicate_coverage,
+    diagnosis_categories,
     unmatched,
     fuzzy_matched: fuzzyMatched.length > 0 ? fuzzyMatched : undefined,
     feedback_mode: "combined",

@@ -19,6 +19,15 @@ export const metadata: Metadata = {
   title: "FCM Companion",
   description:
     "Transform differential diagnosis practice — mobile-first companion for UVA FCM",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FCM Companion",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

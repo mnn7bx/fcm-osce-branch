@@ -153,6 +153,8 @@ export default function CaseDifferentialPage() {
   const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [sentiment, setSentiment] = useState<string | null>(null);
+  const [sentimentSaving, setSentimentSaving] = useState(false);
 
   const isSubmitted =
     submission?.status === "submitted" ||
@@ -169,7 +171,7 @@ export default function CaseDifferentialPage() {
     if (!user?.id || !caseId) return;
 
     async function fetchData() {
-      const [caseResult, submissionResult, noteResult] = await Promise.all([
+      const [caseResult, submissionResult, noteResult, sentimentResult] = await Promise.all([
         supabase.from("fcm_cases").select("*").eq("id", caseId).single(),
         supabase
           .from("fcm_submissions")
@@ -183,6 +185,9 @@ export default function CaseDifferentialPage() {
           .eq("user_id", user!.id)
           .eq("case_id", caseId)
           .maybeSingle(),
+        fetch(`/api/sentiments?user_id=${user!.id}&case_id=${caseId}`)
+          .then((r) => r.json())
+          .catch(() => ({ sentiment: null })),
       ]);
 
       if (caseResult.data) {
@@ -199,6 +204,10 @@ export default function CaseDifferentialPage() {
         const note = noteResult.data as FcmNote;
         setNoteContent(note.content || "");
         if (note.is_sent_to_instructor) setQuestionSent(true);
+      }
+
+      if (sentimentResult.sentiment) {
+        setSentiment(sentimentResult.sentiment);
       }
 
       setLoading(false);
@@ -415,6 +424,52 @@ export default function CaseDifferentialPage() {
           </p>
         )}
       </div>
+
+      {/* Sentiment capture bar */}
+      {!sentiment && !isSubmitted && (
+        <div className="flex items-center gap-2 rounded-lg border p-3">
+          <span className="text-xs text-muted-foreground shrink-0">How are you feeling?</span>
+          <div className="flex gap-1.5 flex-1 justify-end">
+            {[
+              { key: "confident", label: "Confident", emoji: "😊" },
+              { key: "uncertain", label: "Uncertain", emoji: "🤔" },
+              { key: "lost", label: "Lost", emoji: "😵" },
+            ].map(({ key, label, emoji }) => (
+              <button
+                key={key}
+                type="button"
+                disabled={sentimentSaving}
+                onClick={async () => {
+                  if (!user?.id) return;
+                  setSentimentSaving(true);
+                  await fetch("/api/sentiments", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_id: user.id, case_id: caseId, sentiment: key }),
+                  });
+                  setSentiment(key);
+                  setSentimentSaving(false);
+                }}
+                className={cn(
+                  "flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-colors",
+                  "hover:bg-accent"
+                )}
+              >
+                <span>{emoji}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {sentiment && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 p-2">
+          <CheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
+          <span className="text-xs text-green-800 dark:text-green-200">
+            Feeling: {sentiment}
+          </span>
+        </div>
+      )}
 
       {/* Diagnosis input with autocomplete */}
       <DiagnosisInput

@@ -143,6 +143,7 @@ export interface FeedbackResult {
   cant_miss_hit: string[];
   cant_miss_missed: string[];
   vindicate_coverage: Record<string, boolean>;
+  diagnosis_categories?: Record<string, string>;
   unmatched: string[];
   fuzzy_matched?: { student: string; matched_to: string }[];
   ai_narrative: string;
