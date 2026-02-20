@@ -19,6 +19,7 @@ import {
   StickyNote,
   RotateCcw,
   Eye,
+  Brain,
 } from "lucide-react";
 
 function DiagnosisLink({ term }: { term: string }) {
@@ -471,11 +472,18 @@ export default function FeedbackPage() {
           <div className="flex gap-3">
             <Button
               variant="outline"
-              className="w-full"
+              className="flex-1"
               onClick={() => router.push("/notes")}
             >
               <StickyNote className="h-4 w-4 mr-1" />
               Add Notes
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => router.push(`/cases/${caseId}/refresh`)}
+            >
+              <Brain className="h-4 w-4 mr-1" />
+              Quick Quiz
             </Button>
           </div>
         </>

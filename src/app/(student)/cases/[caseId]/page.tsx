@@ -536,10 +536,15 @@ export default function CaseDifferentialPage() {
                 You&apos;ve submitted this case.
               </p>
             </div>
-            <div className="mt-2">
+            <div className="mt-2 flex gap-2">
               <Link href={`/cases/${caseId}/feedback`}>
                 <Button variant="outline" size="sm">
                   View Feedback
+                </Button>
+              </Link>
+              <Link href={`/cases/${caseId}/refresh`}>
+                <Button variant="outline" size="sm">
+                  Quick Quiz
                 </Button>
               </Link>
             </div>
