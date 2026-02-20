@@ -41,12 +41,12 @@ export default function StudentLayout({
   return (
     <div className="flex min-h-dvh bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex md:w-56 md:flex-col border-r bg-sidebar">
+      <aside className="hidden md:flex md:w-56 md:flex-col border-r bg-sidebar h-dvh sticky top-0">
         <div className="flex h-14 items-center gap-2 border-b px-4">
           <Stethoscope className="h-5 w-5 text-primary" />
           <span className="font-semibold text-sm">FCM Companion</span>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
