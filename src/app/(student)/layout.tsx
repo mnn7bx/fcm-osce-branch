@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/cases", label: "Cases", icon: ClipboardList },
   { href: "/practice", label: "Try a Case", icon: Library },
+  { href: "/osce", label: "OSCE", icon: Stethoscope },
   { href: "/notes", label: "Notes", icon: StickyNote },
   { href: "/reference", label: "Resources", icon: BookOpen },
 ];

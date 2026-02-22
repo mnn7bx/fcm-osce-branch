@@ -1,0 +1,194 @@
+"use client";
+
+import type { RevisedDiagnosis } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { ChevronUp, ChevronDown, X } from "lucide-react";
+import { AutocompleteInput } from "@/components/autocomplete-input";
+import { EvidenceMapper } from "@/components/evidence-mapper";
+import { searchDiagnosticTests } from "@/data/diagnostic-test-lookup";
+import { searchTherapeuticOptions } from "@/data/therapeutic-lookup";
+
+export function RevisedDiagnosisRow({
+  diagnosis,
+  index,
+  total,
+  findings,
+  disabled,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  onUpdate,
+}: {
+  diagnosis: RevisedDiagnosis;
+  index: number;
+  total: number;
+  findings: string[];
+  disabled?: boolean;
+  onRemove: (i: number) => void;
+  onMoveUp: (i: number) => void;
+  onMoveDown: (i: number) => void;
+  onUpdate: (i: number, updated: RevisedDiagnosis) => void;
+}) {
+  function updateField(fields: Partial<RevisedDiagnosis>) {
+    onUpdate(index, { ...diagnosis, ...fields });
+  }
+
+  function toggleEvidence(finding: string) {
+    const current = diagnosis.evidence;
+    if (current.includes(finding)) {
+      updateField({ evidence: current.filter((f) => f !== finding) });
+    } else {
+      updateField({ evidence: [...current, finding] });
+    }
+  }
+
+  function addDiagnosticPlan(term: string) {
+    updateField({ diagnostic_plan: [...diagnosis.diagnostic_plan, term] });
+  }
+
+  function removeDiagnosticPlan(i: number) {
+    updateField({
+      diagnostic_plan: diagnosis.diagnostic_plan.filter((_, idx) => idx !== i),
+    });
+  }
+
+  function addTherapeuticPlan(term: string) {
+    updateField({ therapeutic_plan: [...diagnosis.therapeutic_plan, term] });
+  }
+
+  function removeTherapeuticPlan(i: number) {
+    updateField({
+      therapeutic_plan: diagnosis.therapeutic_plan.filter((_, idx) => idx !== i),
+    });
+  }
+
+  return (
+    <Card className="py-3">
+      <CardContent className="px-4 py-0 space-y-3">
+        {/* Top bar */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-xs text-muted-foreground font-medium shrink-0">
+              {index + 1}.
+            </span>
+            <span className="text-sm font-medium truncate">
+              {diagnosis.diagnosis}
+            </span>
+          </div>
+          {!disabled && (
+            <div className="flex items-center gap-0.5 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onMoveUp(index)}
+                disabled={index === 0}
+                aria-label="Move up"
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onMoveDown(index)}
+                disabled={index === total - 1}
+                aria-label="Move down"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onRemove(index)}
+                aria-label="Remove diagnosis"
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Supporting evidence */}
+        {!disabled && (
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Supporting Evidence
+            </span>
+            <EvidenceMapper
+              findings={findings}
+              selectedFindings={diagnosis.evidence}
+              onToggleFinding={toggleEvidence}
+              disabled={disabled}
+            />
+          </div>
+        )}
+
+        {/* Diagnostic Plan */}
+        {!disabled && (
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Diagnostic Plan
+            </span>
+            <AutocompleteInput
+              onAdd={addDiagnosticPlan}
+              existingTerms={diagnosis.diagnostic_plan}
+              searchFn={searchDiagnosticTests}
+              placeholder="Search or type (CBC, CXR, CT...)"
+              minChars={2}
+            />
+            {diagnosis.diagnostic_plan.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {diagnosis.diagnostic_plan.map((t, i) => (
+                  <Badge key={i} variant="secondary" className="gap-1 pr-1">
+                    <span className="text-xs">{t}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeDiagnosticPlan(i)}
+                      className="ml-0.5 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Therapeutic Plan */}
+        {!disabled && (
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Therapeutic Plan
+            </span>
+            <AutocompleteInput
+              onAdd={addTherapeuticPlan}
+              existingTerms={diagnosis.therapeutic_plan}
+              searchFn={searchTherapeuticOptions}
+              placeholder="Search or type (IV fluids, O2, NSAIDs...)"
+              minChars={2}
+            />
+            {diagnosis.therapeutic_plan.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {diagnosis.therapeutic_plan.map((t, i) => (
+                  <Badge key={i} variant="secondary" className="gap-1 pr-1">
+                    <span className="text-xs">{t}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeTherapeuticPlan(i)}
+                      className="ml-0.5 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
