@@ -184,7 +184,7 @@ export default function OscePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <Loader2 className="h-5 w-5 animate-spin-slow text-primary" />
       </div>
     );
   }
@@ -330,7 +330,7 @@ export default function OscePage() {
                   disabled={starting === c.id}
                 >
                   {starting === c.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin-slow mr-1" />
                   ) : (
                     <Play className="h-3.5 w-3.5 mr-1" />
                   )}
@@ -420,7 +420,7 @@ export default function OscePage() {
                       disabled={starting === c.id}
                     >
                       {starting === c.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin-slow mr-1" />
                       ) : (
                         <Play className="h-3.5 w-3.5 mr-1" />
                       )}

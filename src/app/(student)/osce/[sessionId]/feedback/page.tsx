@@ -182,7 +182,7 @@ export default function OsceFeedbackPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-8 gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin-slow text-primary" />
         <p className="text-sm text-muted-foreground">Generating feedback...</p>
       </div>
     );

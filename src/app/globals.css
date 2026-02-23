@@ -3,6 +3,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Slower spin animation matching Windows loading circle (~3s) */
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+@utility animate-spin-slow {
+  animation: spin-slow 2.5s linear infinite;
+}
+
 /* ============================================
    FCM Companion Design System
    Based on MDP monochrome + medical teal accent

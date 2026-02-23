@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronUp, ChevronDown, X } from "lucide-react";
 import { AutocompleteInput } from "@/components/autocomplete-input";
-import { EvidenceMapper } from "@/components/evidence-mapper";
 import { searchDiagnosticTests } from "@/data/diagnostic-test-lookup";
 import { searchTherapeuticOptions } from "@/data/therapeutic-lookup";
 import { cn } from "@/lib/utils";
@@ -18,6 +17,8 @@ export function RevisedDiagnosisRow({
   total,
   findings,
   disabled,
+  isLinking,
+  onEvidenceFocus,
   onRemove,
   onMoveUp,
   onMoveDown,
@@ -28,6 +29,8 @@ export function RevisedDiagnosisRow({
   total: number;
   findings: string[];
   disabled?: boolean;
+  isLinking?: boolean;
+  onEvidenceFocus?: (index: number) => void;
   onRemove: (i: number) => void;
   onMoveUp: (i: number) => void;
   onMoveDown: (i: number) => void;
@@ -182,16 +185,51 @@ export function RevisedDiagnosisRow({
                 </div>
               )
             ) : (
-              <div className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Supporting Evidence
-                </span>
-                <EvidenceMapper
-                  findings={findings}
-                  selectedFindings={diagnosis.evidence}
-                  onToggleFinding={toggleEvidence}
-                  disabled={false}
-                />
+              <div
+                className="space-y-1.5"
+                onFocus={() => onEvidenceFocus?.(index)}
+                onClick={() => onEvidenceFocus?.(index)}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Supporting Evidence
+                  </span>
+                  {isLinking ? (
+                    <span className="text-[10px] font-medium text-primary animate-pulse">
+                      Click findings in S/O
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      Link from S/O
+                    </button>
+                  )}
+                </div>
+                {diagnosis.evidence.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {diagnosis.evidence.map((e, ei) => (
+                      <Badge key={ei} variant="secondary" className="gap-1 pr-1">
+                        <span className="text-xs max-w-[200px] truncate">{e}</span>
+                        <button
+                          type="button"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            toggleEvidence(e);
+                          }}
+                          className="ml-0.5 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    No evidence linked yet
+                  </p>
+                )}
               </div>
             )}
 

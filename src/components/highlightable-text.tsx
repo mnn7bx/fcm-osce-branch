@@ -24,13 +24,11 @@ interface Toolbar {
 
 /**
  * Compute auto-bold ranges for "• Label:" prefixes on each line.
- * Bolding covers the label text (not the bullet or colon itself).
  */
 function computeLabelAnnotations(text: string): Annotation[] {
   const result: Annotation[] = [];
   let offset = 0;
   for (const line of text.split("\n")) {
-    // Match "• Label:" or "• Label :" at the start of a line
     const match = line.match(/^•\s+([^:]+):/);
     if (match) {
       const bulletLen = line.indexOf(match[1]);
@@ -40,19 +38,53 @@ function computeLabelAnnotations(text: string): Annotation[] {
         type: "bold",
       });
     }
-    offset += line.length + 1; // +1 for the \n
+    offset += line.length + 1;
   }
   return result;
 }
 
 /**
- * Find positions where a linked finding text appears in the source text.
+ * Build a map of character ranges that correspond to clickable findings.
+ * Finds each finding's exact position in the source text.
+ * Handles pipe-separated sub-items that were split from a single line.
+ */
+function buildFindingRanges(
+  text: string,
+  clickableFindings: string[]
+): { start: number; end: number; finding: string }[] {
+  if (!clickableFindings.length) return [];
+  const ranges: { start: number; end: number; finding: string }[] = [];
+  const lowerText = text.toLowerCase();
+  const used = new Set<string>(); // avoid duplicate ranges
+
+  for (const f of clickableFindings) {
+    const needle = f.toLowerCase();
+    let pos = 0;
+    while (pos < lowerText.length) {
+      const idx = lowerText.indexOf(needle, pos);
+      if (idx === -1) break;
+      const key = `${idx}-${idx + f.length}`;
+      if (!used.has(key)) {
+        used.add(key);
+        ranges.push({ start: idx, end: idx + f.length, finding: f });
+      }
+      pos = idx + f.length;
+    }
+  }
+
+  // Sort by start position to avoid overlapping issues
+  ranges.sort((a, b) => a.start - b.start);
+  return ranges;
+}
+
+/**
+ * Find positions where linked-finding text appears in the source text.
  */
 function findLinkedRanges(
   text: string,
   linkedFindings: LinkedFinding[]
-): { start: number; end: number; color: string }[] {
-  const ranges: { start: number; end: number; color: string }[] = [];
+): { start: number; end: number; color: string; text: string }[] {
+  const ranges: { start: number; end: number; color: string; text: string }[] = [];
   for (const lf of linkedFindings) {
     const needle = lf.text.toLowerCase();
     const haystack = text.toLowerCase();
@@ -60,8 +92,8 @@ function findLinkedRanges(
     while (pos < haystack.length) {
       const idx = haystack.indexOf(needle, pos);
       if (idx === -1) break;
-      ranges.push({ start: idx, end: idx + lf.text.length, color: lf.color });
-      pos = idx + 1;
+      ranges.push({ start: idx, end: idx + lf.text.length, color: lf.color, text: lf.text });
+      pos = idx + lf.text.length;
     }
   }
   return ranges;
@@ -72,12 +104,18 @@ function renderAnnotated(
   text: string,
   annotations: Annotation[],
   linkedFindings?: LinkedFinding[],
-  onFindingClick?: (findingText: string) => void
+  onFindingClick?: (findingText: string) => void,
+  clickableFindings?: string[],
+  onClickableFindingClick?: (finding: string) => void,
+  selectedEvidence?: string[]
 ) {
   const allAnnotations = [...computeLabelAnnotations(text), ...annotations];
-  const linkedRanges = linkedFindings ? findLinkedRanges(text, linkedFindings) : [];
+  const linkedRanges = linkedFindings?.length ? findLinkedRanges(text, linkedFindings) : [];
+  const findingRanges = clickableFindings?.length ? buildFindingRanges(text, clickableFindings) : [];
 
-  if (!allAnnotations.length && !linkedRanges.length) return <>{text}</>;
+  if (!allAnnotations.length && !linkedRanges.length && !findingRanges.length) {
+    return <>{text}</>;
+  }
 
   const boundaries = new Set([0, text.length]);
   for (const ann of allAnnotations) {
@@ -92,6 +130,12 @@ function renderAnnotated(
       boundaries.add(lr.end);
     }
   }
+  for (const fr of findingRanges) {
+    if (fr.start >= 0 && fr.end <= text.length) {
+      boundaries.add(fr.start);
+      boundaries.add(fr.end);
+    }
+  }
 
   const points = Array.from(boundaries).sort((a, b) => a - b);
 
@@ -104,37 +148,47 @@ function renderAnnotated(
         const highlighted = active.some((a) => a.type === "highlight");
         const bold = active.some((a) => a.type === "bold");
 
-        // Check linked findings overlay
+        // Linked findings (color-coded underlines from hovered diagnosis)
         const activeLinks = linkedRanges.filter((lr) => lr.start <= start && lr.end >= end);
         const hasLink = activeLinks.length > 0;
         const linkColor = hasLink ? activeLinks[0].color : undefined;
 
-        // Find matching finding text for click handler
-        const matchedFinding = hasLink && linkedFindings
-          ? linkedFindings.find((lf) => {
-              return activeLinks.some(
-                (lr) =>
-                  text.slice(lr.start, lr.end).toLowerCase() ===
-                  lf.text.toLowerCase()
-              );
-            })
+        // Clickable findings (all findings, clickable when a diagnosis is selected)
+        const activeFinding = findingRanges.find((fr) => fr.start <= start && fr.end >= end);
+        const isClickableFinding = !!activeFinding && !!onClickableFindingClick;
+        const isSelected = activeFinding && selectedEvidence?.includes(activeFinding.finding);
+
+        // For linked finding click → scroll to diagnosis
+        const matchedLinked = hasLink && linkedFindings
+          ? linkedFindings.find((lf) =>
+              activeLinks.some(
+                (lr) => lr.text.toLowerCase() === lf.text.toLowerCase()
+              )
+            )
+          : undefined;
+
+        const handleClick = isClickableFinding
+          ? (e: React.MouseEvent) => {
+              e.stopPropagation();
+              onClickableFindingClick!(activeFinding!.finding);
+            }
+          : matchedLinked && onFindingClick
+          ? (e: React.MouseEvent) => {
+              e.stopPropagation();
+              onFindingClick(matchedLinked.text);
+            }
           : undefined;
 
         return (
           <span
             key={`${start}-${end}`}
-            onClick={
-              matchedFinding && onFindingClick
-                ? (e) => {
-                    e.stopPropagation();
-                    onFindingClick(matchedFinding.text);
-                  }
-                : undefined
-            }
+            onClick={handleClick}
             className={cn(
               highlighted && "bg-yellow-200 dark:bg-yellow-700/60 rounded-[2px]",
               bold && "font-semibold",
-              hasLink && "rounded-[2px] cursor-pointer transition-colors"
+              hasLink && "rounded-[2px] cursor-pointer transition-colors",
+              isClickableFinding && !hasLink && !isSelected && "rounded-[2px] cursor-pointer underline decoration-dashed decoration-muted-foreground/50 underline-offset-2 hover:bg-primary/10 transition-colors",
+              isSelected && !hasLink && "bg-primary/15 dark:bg-primary/25 rounded-[2px] cursor-pointer underline decoration-solid decoration-primary underline-offset-2"
             )}
             style={
               hasLink && linkColor
@@ -160,6 +214,12 @@ interface HighlightableTextProps {
   className?: string;
   linkedFindings?: LinkedFinding[];
   onFindingClick?: (findingText: string) => void;
+  /** All findings that can be clicked to toggle evidence */
+  clickableFindings?: string[];
+  /** Called when a clickable finding is clicked */
+  onClickableFindingClick?: (finding: string) => void;
+  /** Currently selected evidence for the active diagnosis */
+  selectedEvidence?: string[];
 }
 
 export function HighlightableText({
@@ -169,6 +229,9 @@ export function HighlightableText({
   className,
   linkedFindings,
   onFindingClick,
+  clickableFindings,
+  onClickableFindingClick,
+  selectedEvidence,
 }: HighlightableTextProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [toolbar, setToolbar] = useState<Toolbar | null>(null);
@@ -185,11 +248,10 @@ export function HighlightableText({
   }, []);
 
   const processSelection = useCallback(() => {
-    // Small delay to let mobile browsers finalize the selection
+    // Longer delay for mobile to let browser finalize selection
     setTimeout(() => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || !containerRef.current) {
-        setToolbar(null);
         return;
       }
 
@@ -204,19 +266,18 @@ export function HighlightableText({
       const end = start + range.toString().length;
 
       if (start >= end || end > containerText.length) {
-        setToolbar(null);
         return;
       }
 
-      // Position toolbar above the selection
+      // Position toolbar above the selection — use viewport coords (fixed positioning)
       const rect = range.getBoundingClientRect();
       setToolbar({
-        top: rect.top + window.scrollY - 44,
+        top: rect.top - 44,
         left: Math.max(8, rect.left + rect.width / 2 - 60),
         selStart: start,
         selEnd: end,
       });
-    }, 10);
+    }, 50);
   }, []);
 
   function addAnnotation(type: "highlight" | "bold") {
@@ -254,27 +315,39 @@ export function HighlightableText({
           <button
             type="button"
             title="Highlight"
-            onClick={() => addAnnotation("highlight")}
-            className="flex h-7 w-7 items-center justify-center rounded hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              addAnnotation("highlight");
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors"
           >
-            <Highlighter className="h-3.5 w-3.5 text-yellow-600" />
+            <Highlighter className="h-4 w-4 text-yellow-600" />
           </button>
           <button
             type="button"
             title="Bold"
-            onClick={() => addAnnotation("bold")}
-            className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted transition-colors"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              addAnnotation("bold");
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded hover:bg-muted transition-colors"
           >
-            <Bold className="h-3.5 w-3.5" />
+            <Bold className="h-4 w-4" />
           </button>
           {annotations.length > 0 && (
             <button
               type="button"
               title="Clear all"
-              onClick={clearAll}
-              className="flex h-7 w-7 items-center justify-center rounded hover:bg-destructive/10 transition-colors"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                clearAll();
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-destructive/10 transition-colors"
             >
-              <X className="h-3.5 w-3.5 text-destructive" />
+              <X className="h-4 w-4 text-destructive" />
             </button>
           )}
         </div>
@@ -287,7 +360,15 @@ export function HighlightableText({
         onTouchEnd={processSelection}
         className={cn("select-text whitespace-pre-line cursor-text", className)}
       >
-        {renderAnnotated(text, annotations, linkedFindings, onFindingClick)}
+        {renderAnnotated(
+          text,
+          annotations,
+          linkedFindings,
+          onFindingClick,
+          clickableFindings,
+          onClickableFindingClick,
+          selectedEvidence
+        )}
       </div>
     </>
   );

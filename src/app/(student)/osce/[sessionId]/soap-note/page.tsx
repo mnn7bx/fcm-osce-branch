@@ -23,14 +23,12 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2,
   ArrowRight,
-  FileText,
   AlertCircle,
   RotateCcw,
   Eye,
   Stethoscope,
   ClipboardCheck,
 } from "lucide-react";
-
 /** Color palette for diagnosis-evidence linking */
 const LINK_COLORS = [
   "#3b82f6", // blue
@@ -61,6 +59,7 @@ export default function SoapNotePage() {
   const [subjAnnotations, setSubjAnnotations] = useState<Annotation[]>([]);
   const [objAnnotations, setObjAnnotations] = useState<Annotation[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Click-selected diagnosis for evidence linking (persists until toggled off)
   const [activeDiagnosisIndex, setActiveDiagnosisIndex] = useState<number | null>(null);
 
   const diagnosisRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -83,12 +82,18 @@ export default function SoapNotePage() {
     return extractFindings(soapContext.subjective, soapContext.objective);
   }, [soapContext]);
 
-  // Build linked findings for the active diagnosis
+  // Build linked findings for the active diagnosis (color-coded underlines)
   const linkedFindings = useMemo((): LinkedFinding[] => {
     if (activeDiagnosisIndex === null || !diagnoses[activeDiagnosisIndex]) return [];
     const dx = diagnoses[activeDiagnosisIndex];
     const color = LINK_COLORS[activeDiagnosisIndex % LINK_COLORS.length];
     return dx.evidence.map((text) => ({ text, color }));
+  }, [activeDiagnosisIndex, diagnoses]);
+
+  // Current evidence for the active diagnosis (for highlight state)
+  const activeEvidence = useMemo((): string[] => {
+    if (activeDiagnosisIndex === null || !diagnoses[activeDiagnosisIndex]) return [];
+    return diagnoses[activeDiagnosisIndex].evidence;
   }, [activeDiagnosisIndex, diagnoses]);
 
   useEffect(() => {
@@ -103,20 +108,17 @@ export default function SoapNotePage() {
         const sess: OsceSession = data.session;
         setSession(sess);
 
-        // Redirect back if still on door prep
         if (sess.status === "door_prep") {
           router.replace(`/osce/${sessionId}/door-prep`);
           return;
         }
 
-        // Restore saved SOAP data or initialize from door prep
         if (sess.soap_note) {
           const saved = sess.soap_note as SoapNoteData;
           if (saved.diagnoses?.length > 0) {
             setDiagnoses(saved.diagnoses);
           }
         } else if (sess.door_prep) {
-          // Initialize from door prep diagnoses
           const doorPrep = sess.door_prep as DoorPrepData;
           if (doorPrep.diagnoses?.length > 0) {
             setDiagnoses(
@@ -133,8 +135,6 @@ export default function SoapNotePage() {
         }
 
         setLoading(false);
-
-        // Fetch S/O context
         fetchSoapContext();
       } catch {
         router.push("/osce");
@@ -185,6 +185,9 @@ export default function SoapNotePage() {
   function removeDiagnosis(i: number) {
     setDiagnoses((prev) => prev.filter((_, idx) => idx !== i));
     if (activeDiagnosisIndex === i) setActiveDiagnosisIndex(null);
+    else if (activeDiagnosisIndex !== null && activeDiagnosisIndex > i) {
+      setActiveDiagnosisIndex(activeDiagnosisIndex - 1);
+    }
   }
 
   function moveDiagnosis(i: number, direction: "up" | "down") {
@@ -201,8 +204,28 @@ export default function SoapNotePage() {
     setDiagnoses((prev) => prev.map((d, idx) => (idx === i ? updated : d)));
   }
 
-  /** When a finding in S/O text is clicked, scroll to the diagnosis that cited it */
-  function handleFindingClick(findingText: string) {
+  /** When a finding in S/O text is clicked, toggle it as evidence on the active diagnosis */
+  function handleFindingToggle(findingText: string) {
+    if (activeDiagnosisIndex === null || readOnly) return;
+    const dx = diagnoses[activeDiagnosisIndex];
+    if (!dx) return;
+
+    const current = dx.evidence;
+    if (current.includes(findingText)) {
+      updateDiagnosis(activeDiagnosisIndex, {
+        ...dx,
+        evidence: current.filter((f) => f !== findingText),
+      });
+    } else {
+      updateDiagnosis(activeDiagnosisIndex, {
+        ...dx,
+        evidence: [...current, findingText],
+      });
+    }
+  }
+
+  /** When a linked finding is clicked and no diagnosis is actively selected, scroll to its diagnosis */
+  function handleLinkedFindingClick(findingText: string) {
     const idx = diagnoses.findIndex((d) =>
       d.evidence.some((e) => e.toLowerCase() === findingText.toLowerCase())
     );
@@ -245,16 +268,18 @@ export default function SoapNotePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <Loader2 className="h-5 w-5 animate-spin-slow text-primary" />
       </div>
     );
   }
+
+  const hasActiveDiagnosis = activeDiagnosisIndex !== null && !readOnly;
 
   const soContent = (
     <>
       {contextLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground p-4">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin-slow" />
           Loading findings...
         </div>
       ) : contextError ? (
@@ -276,7 +301,9 @@ export default function SoapNotePage() {
       ) : soapContext ? (
         <div className="space-y-3">
           <InstructionBanner>
-            Select text to highlight or bold key findings
+            {hasActiveDiagnosis
+              ? `Click underlined findings to link them to "${diagnoses[activeDiagnosisIndex!].diagnosis}"`
+              : "Select text to highlight or bold. Open a diagnosis's evidence section to start linking."}
           </InstructionBanner>
 
           {/* Subjective Card */}
@@ -294,7 +321,10 @@ export default function SoapNotePage() {
                 onChange={setSubjAnnotations}
                 className="text-sm"
                 linkedFindings={linkedFindings}
-                onFindingClick={handleFindingClick}
+                onFindingClick={handleLinkedFindingClick}
+                clickableFindings={hasActiveDiagnosis ? findings : undefined}
+                onClickableFindingClick={hasActiveDiagnosis ? handleFindingToggle : undefined}
+                selectedEvidence={hasActiveDiagnosis ? activeEvidence : undefined}
               />
             </CardContent>
           </Card>
@@ -314,7 +344,10 @@ export default function SoapNotePage() {
                 onChange={setObjAnnotations}
                 className="text-sm"
                 linkedFindings={linkedFindings}
-                onFindingClick={handleFindingClick}
+                onFindingClick={handleLinkedFindingClick}
+                clickableFindings={hasActiveDiagnosis ? findings : undefined}
+                onClickableFindingClick={hasActiveDiagnosis ? handleFindingToggle : undefined}
+                selectedEvidence={hasActiveDiagnosis ? activeEvidence : undefined}
               />
             </CardContent>
           </Card>
@@ -348,37 +381,37 @@ export default function SoapNotePage() {
 
       {/* Revised diagnosis rows */}
       <div className="space-y-3">
-        {diagnoses.map((d, i) => (
-          <div
-            key={`${d.diagnosis}-${i}`}
-            ref={(el) => {
-              if (el) diagnosisRefs.current.set(i, el);
-              else diagnosisRefs.current.delete(i);
-            }}
-            onMouseEnter={() => setActiveDiagnosisIndex(i)}
-            onMouseLeave={() => setActiveDiagnosisIndex(null)}
-            onFocus={() => setActiveDiagnosisIndex(i)}
-            className="rounded-lg transition-shadow"
-            style={{
-              boxShadow:
-                activeDiagnosisIndex === i
-                  ? `0 0 0 2px ${LINK_COLORS[i % LINK_COLORS.length]}40`
-                  : undefined,
-            }}
-          >
-            <RevisedDiagnosisRow
-              diagnosis={d}
-              index={i}
-              total={diagnoses.length}
-              findings={findings}
-              disabled={readOnly}
-              onRemove={removeDiagnosis}
-              onMoveUp={(idx) => moveDiagnosis(idx, "up")}
-              onMoveDown={(idx) => moveDiagnosis(idx, "down")}
-              onUpdate={updateDiagnosis}
-            />
-          </div>
-        ))}
+        {diagnoses.map((d, i) => {
+          const isActive = activeDiagnosisIndex === i;
+          const color = LINK_COLORS[i % LINK_COLORS.length];
+          return (
+            <div
+              key={`${d.diagnosis}-${i}`}
+              ref={(el) => {
+                if (el) diagnosisRefs.current.set(i, el);
+                else diagnosisRefs.current.delete(i);
+              }}
+              className="rounded-lg transition-shadow"
+              style={{
+                boxShadow: isActive ? `0 0 0 2px ${color}` : undefined,
+              }}
+            >
+              <RevisedDiagnosisRow
+                diagnosis={d}
+                index={i}
+                total={diagnoses.length}
+                findings={findings}
+                disabled={readOnly}
+                isLinking={isActive}
+                onEvidenceFocus={(idx) => setActiveDiagnosisIndex(idx)}
+                onRemove={removeDiagnosis}
+                onMoveUp={(idx) => moveDiagnosis(idx, "up")}
+                onMoveDown={(idx) => moveDiagnosis(idx, "down")}
+                onUpdate={updateDiagnosis}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* Save status (active only) */}

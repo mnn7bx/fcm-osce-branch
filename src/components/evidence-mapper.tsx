@@ -6,35 +6,56 @@ import { Input } from "@/components/ui/input";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Section headers that should not be clickable findings */
+const HEADER_PATTERN =
+  /^(History|Symptoms|Physical Examination|Test Results|Review of Systems|Past Medical|Social|Family|Medications|Allergies|Objective|Subjective|No subjective|No objective|Vital Signs|Neurological|Blood Tests|Imaging|Electromyography|Patient)\s*$/i;
+
 /**
- * Strip JSON artifacts from a string (brackets, braces, quotes, keys).
+ * Strip bullet prefix and JSON artifacts from a string.
  */
 function cleanText(s: string): string {
   return s
     .replace(/^\s*[•\-]\s*/, "") // strip bullet prefix
     .replace(/[{}\[\]"]/g, "")   // strip JSON syntax characters
-    .replace(/^\w+:\s*/, "")     // strip leading "key: " labels that look like JSON keys
     .trim();
 }
 
 /**
  * Extract discrete findings from S/O bullet text.
- * Each bullet line becomes one selectable finding.
+ * Splits pipe-separated items (e.g. "BP: 120/80 | HR: 72") into individual findings.
+ * Each finding maps back to its exact text in the original S/O for click targeting.
  */
 export function extractFindings(subjective: string, objective: string): string[] {
   const combined = `${subjective}\n${objective}`;
   const findings: string[] = [];
 
-  // Each line is already a bullet — split on newlines first
   const lines = combined.split(/\n/);
   for (const line of lines) {
-    const cleaned = cleanText(line);
-    if (
-      cleaned.length >= 5 &&
-      cleaned.length <= 200 &&
-      !cleaned.match(/^(History|Symptoms|Physical Examination|Test Results|Review of Systems|Past Medical|Social|Family|Medications|Allergies|Objective|Subjective|No subjective|No objective)\s*$/i)
-    ) {
-      findings.push(cleaned);
+    const stripped = line.replace(/^\s*[•\-]\s*/, "").replace(/[{}\[\]"]/g, "").trim();
+    if (!stripped || stripped.length < 5) continue;
+
+    // Check if line has pipe-separated sub-items
+    if (stripped.includes(" | ")) {
+      // Split off any leading label (e.g. "Vital Signs: Temp: 36°C | BP: 120/80")
+      // The label before the first sub-item's colon might be a section header
+      const segments = stripped.split(/\s*\|\s*/);
+      for (const seg of segments) {
+        const trimmed = seg.trim();
+        // Skip if it's just a section header label
+        const labelOnly = trimmed.replace(/:.*$/, "").trim();
+        if (HEADER_PATTERN.test(labelOnly) && !trimmed.includes(":")) continue;
+        if (trimmed.length >= 3 && trimmed.length <= 200) {
+          findings.push(trimmed);
+        }
+      }
+    } else {
+      // Single item line — strip leading "Label: " if it's a pure section header
+      const labelOnly = stripped.replace(/:.*$/, "").trim();
+      if (HEADER_PATTERN.test(labelOnly) && stripped.endsWith(":")) continue;
+      if (HEADER_PATTERN.test(stripped)) continue;
+      if (stripped.length <= 200) {
+        findings.push(stripped);
+      }
     }
   }
 
