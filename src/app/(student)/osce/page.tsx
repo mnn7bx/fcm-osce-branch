@@ -9,7 +9,7 @@ import { PRACTICE_CASES } from "@/data/practice-cases";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Play, RotateCcw, Stethoscope, ChevronRight } from "lucide-react";
+import { Loader2, Play, RotateCcw, Stethoscope, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ratingDotClass: Record<string, string> = {
@@ -63,6 +63,9 @@ export default function OscePage() {
   const [sessions, setSessions] = useState<OsceSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<string | null>(null);
+  const [showAllSessions, setShowAllSessions] = useState(false);
+
+  const SESSIONS_PREVIEW = 5;
 
   const oscePracticeCases = PRACTICE_CASES.filter((c: PracticeCase) => c.has_structured_exam);
 
@@ -192,10 +195,15 @@ export default function OscePage() {
       {/* Completed sessions */}
       {completedSessions.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Past Sessions
-          </h2>
-          {completedSessions.map((session) => {
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Past Sessions
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              {completedSessions.length} attempt{completedSessions.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          {(showAllSessions ? completedSessions : completedSessions.slice(0, SESSIONS_PREVIEW)).map((session) => {
             const fb = session.feedback as OSCEFeedbackResult | null;
             const rubric = fb?.rubric_scores ?? [];
             const label = getCaseLabel(session, scheduledCases);
@@ -230,6 +238,25 @@ export default function OscePage() {
               </Card>
             );
           })}
+          {completedSessions.length > SESSIONS_PREVIEW && (
+            <button
+              type="button"
+              onClick={() => setShowAllSessions((v) => !v)}
+              className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground py-1 transition-colors"
+            >
+              {showAllSessions ? (
+                <>
+                  <ChevronUp className="h-3.5 w-3.5" />
+                  Show less
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                  Show all {completedSessions.length} sessions
+                </>
+              )}
+            </button>
+          )}
         </section>
       )}
 

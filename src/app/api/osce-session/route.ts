@@ -48,8 +48,7 @@ export async function GET(request: NextRequest) {
       .from("fcm_osce_sessions")
       .select("*")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(20);
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("List OSCE sessions error:", error);

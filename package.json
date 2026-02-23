@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:reset": "npx tsx scripts/reset-test-data.ts",
     "data:process": "npx tsx scripts/process-agentclinic.ts",
-    "data:diagnoses": "npx tsx scripts/expand-diagnoses.ts"
+    "data:diagnoses": "npx tsx scripts/expand-diagnoses.ts",
+    "data:soap": "npx tsx scripts/generate-soap-contexts.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.77.0",

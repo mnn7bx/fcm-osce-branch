@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient } from "@/lib/supabase";
-import { extractSoapContext, buildSoapContextPrompt } from "@/lib/osce-soap";
-import { PRACTICE_CASES } from "@/data/practice-cases";
-import type { PracticeCase } from "@/types";
+import { buildSoapContextPrompt } from "@/lib/osce-soap";
+import SOAP_CONTEXTS from "@/data/osce-soap-contexts.json";
+import type { SoapContext } from "@/types";
 
 const anthropic = new Anthropic();
 
@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // Fetch session
     const { data: session, error: sessError } = await supabase
       .from("fcm_osce_sessions")
       .select("*")
@@ -28,19 +27,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
+    // Practice cases: instant static lookup — no API call needed
+    if (session.case_source === "practice" && session.practice_case_id) {
+      const ctx = (SOAP_CONTEXTS as Record<string, SoapContext>)[session.practice_case_id];
+      if (ctx) return NextResponse.json(ctx);
+    }
+
+    // Scheduled/custom cases: fall back to Claude generation
     let chiefComplaint = "";
     let correctDiagnosis = "";
     let fullCaseData: Record<string, unknown> = {};
 
-    // Resolve case data based on source
-    if (session.case_source === "practice" && session.practice_case_id) {
-      const pc = PRACTICE_CASES.find((c: PracticeCase) => c.id === session.practice_case_id);
-      if (pc) {
-        chiefComplaint = pc.chief_complaint;
-        correctDiagnosis = pc.correct_diagnosis;
-        fullCaseData = pc.full_case_data;
-      }
-    } else if (session.case_id) {
+    if (session.case_id) {
       const { data: caseData } = await supabase
         .from("fcm_cases")
         .select("*")
@@ -54,14 +52,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Try deterministic extraction first
-    const deterministicContext = extractSoapContext(fullCaseData);
-
-    if (deterministicContext) {
-      return NextResponse.json(deterministicContext);
-    }
-
-    // Fallback to Claude generation
     const prompt = buildSoapContextPrompt(chiefComplaint, correctDiagnosis, fullCaseData);
 
     const message = await anthropic.messages.create({
@@ -73,25 +63,22 @@ export async function POST(request: NextRequest) {
     const responseText = message.content[0].type === "text" ? message.content[0].text : "";
 
     try {
-      const parsed = JSON.parse(responseText);
-      // Claude returns arrays of bullet strings — join them with newlines
-      const subjArr = parsed.subjective;
-      const objArr = parsed.objective;
+      const jsonText = responseText.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
+      const parsed = JSON.parse(jsonText);
       const toStr = (v: unknown) => {
         if (Array.isArray(v)) return v.map((s) => `• ${String(s).replace(/^[•\-]\s*/, "")}`).join("\n");
         if (typeof v === "string") return v;
         return "• No data available";
       };
       return NextResponse.json({
-        subjective: toStr(subjArr),
-        objective: toStr(objArr),
+        subjective: toStr(parsed.subjective),
+        objective: toStr(parsed.objective),
       });
     } catch {
-      // If JSON parsing fails, return a safe fallback
-      return NextResponse.json({
-        subjective: "• Unable to load subjective findings",
-        objective: "• Unable to load objective findings",
-      });
+      return NextResponse.json(
+        { error: "Failed to generate SOAP context" },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error("OSCE SOAP context error:", error);

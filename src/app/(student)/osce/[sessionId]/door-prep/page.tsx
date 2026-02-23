@@ -13,7 +13,7 @@ import { DoorPrepDiagnosisRow } from "@/components/door-prep-diagnosis-row";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ClipboardList, ArrowRight } from "lucide-react";
+import { Loader2, ClipboardList, ArrowRight, Eye } from "lucide-react";
 
 export default function DoorPrepPage() {
   const { user } = useUser();
@@ -34,8 +34,10 @@ export default function DoorPrepPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const readOnly = session?.status === "completed" || session?.status === "soap_note";
+
   const doorPrepData: DoorPrepData = { diagnoses };
-  const { saveStatus } = useOsceAutosave(sessionId, "door_prep", doorPrepData, diagnoses.length > 0);
+  const { saveStatus } = useOsceAutosave(sessionId, "door_prep", doorPrepData, !readOnly && diagnoses.length > 0);
 
   // Load session and case info
   useEffect(() => {
@@ -56,16 +58,6 @@ export default function DoorPrepPage() {
           if (saved.diagnoses?.length > 0) {
             setDiagnoses(saved.diagnoses);
           }
-        }
-
-        // Redirect if already past door prep
-        if (sess.status === "soap_note") {
-          router.replace(`/osce/${sessionId}/soap-note`);
-          return;
-        }
-        if (sess.status === "completed") {
-          router.replace(`/osce/${sessionId}/feedback`);
-          return;
         }
 
         // Load case info
@@ -167,7 +159,7 @@ export default function DoorPrepPage() {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
-      <OsceProgress currentPhase="door_prep" />
+      <OsceProgress currentPhase="door_prep" sessionId={sessionId} sessionCompleted={readOnly} />
 
       {/* Door card — sticky so demographics stay visible while scrolling */}
       {caseInfo && (
@@ -210,17 +202,29 @@ export default function DoorPrepPage() {
         </Card>
       )}
 
-      {/* Instructions */}
-      <p className="text-sm text-muted-foreground">
-        Build your differential: for each diagnosis, list the history questions
-        you would ask and the PE maneuvers you would perform.
-      </p>
+      {/* Read-only banner */}
+      {readOnly && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+          <Eye className="h-3.5 w-3.5 shrink-0" />
+          Viewing submitted door prep — read only
+        </div>
+      )}
 
-      {/* Diagnosis input */}
-      <DiagnosisInput
-        onAdd={addDiagnosis}
-        existingDiagnoses={diagnoses.map((d) => d.diagnosis)}
-      />
+      {/* Instructions (active only) */}
+      {!readOnly && (
+        <p className="text-sm text-muted-foreground">
+          Build your differential: for each diagnosis, list the history questions
+          you would ask and the PE maneuvers you would perform.
+        </p>
+      )}
+
+      {/* Diagnosis input (active only) */}
+      {!readOnly && (
+        <DiagnosisInput
+          onAdd={addDiagnosis}
+          existingDiagnoses={diagnoses.map((d) => d.diagnosis)}
+        />
+      )}
 
       {/* Diagnosis rows */}
       <div className="space-y-3">
@@ -230,6 +234,7 @@ export default function DoorPrepPage() {
             diagnosis={d}
             index={i}
             total={diagnoses.length}
+            disabled={readOnly}
             onRemove={removeDiagnosis}
             onMoveUp={(idx) => moveDiagnosis(idx, "up")}
             onMoveDown={(idx) => moveDiagnosis(idx, "down")}
@@ -238,8 +243,8 @@ export default function DoorPrepPage() {
         ))}
       </div>
 
-      {/* Save status */}
-      {saveStatus !== "idle" && (
+      {/* Save status (active only) */}
+      {!readOnly && saveStatus !== "idle" && (
         <p className="text-xs text-muted-foreground text-center">
           {saveStatus === "saving" && "Saving..."}
           {saveStatus === "saved" && "Saved"}
@@ -247,25 +252,27 @@ export default function DoorPrepPage() {
         </p>
       )}
 
-      {/* Submit */}
-      <Button
-        onClick={handleSubmit}
-        disabled={diagnoses.length === 0 || submitting}
-        className="w-full"
-        size="lg"
-      >
-        {submitting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            Submitting...
-          </>
-        ) : (
-          <>
-            Continue to SOAP Note
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </>
-        )}
-      </Button>
+      {/* Submit (active only) */}
+      {!readOnly && (
+        <Button
+          onClick={handleSubmit}
+          disabled={diagnoses.length === 0 || submitting}
+          className="w-full"
+          size="lg"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Submitting...
+            </>
+          ) : (
+            <>
+              Continue to SOAP Note
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }

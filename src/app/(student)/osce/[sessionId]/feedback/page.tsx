@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import type { OsceSession, OSCEFeedbackResult } from "@/types";
+import type { OsceSession, OSCEFeedbackResult, DoorPrepData, SoapNoteData } from "@/types";
 import { OsceProgress } from "@/components/osce-progress";
 import { RubricScoreCard } from "@/components/rubric-score-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
   Stethoscope,
@@ -15,13 +16,125 @@ import {
   AlertTriangle,
   RotateCcw,
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
 } from "lucide-react";
+
+function SubmissionReview({
+  doorPrep,
+  soapNote,
+}: {
+  doorPrep: DoorPrepData | null;
+  soapNote: SoapNoteData | null;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (!doorPrep && !soapNote) return null;
+
+  return (
+    <section className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between w-full"
+      >
+        <div className="flex items-center gap-2">
+          <ClipboardList className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Your Submission
+          </h2>
+        </div>
+        {open ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
+
+      {open && (
+        <div className="space-y-3">
+          {/* Door prep */}
+          {doorPrep && doorPrep.diagnoses.length > 0 && (
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Door Prep Differential
+                </p>
+                {doorPrep.diagnoses.map((d, i) => (
+                  <div key={i} className="space-y-1">
+                    <p className="text-sm font-medium">{d.diagnosis}</p>
+                    {d.history_questions.filter((q) => q.trim()).length > 0 && (
+                      <div className="text-xs text-muted-foreground pl-2 space-y-0.5">
+                        <p className="font-medium">History questions:</p>
+                        {d.history_questions.filter((q) => q.trim()).map((q, j) => (
+                          <p key={j}>• {q}</p>
+                        ))}
+                      </div>
+                    )}
+                    {d.pe_maneuvers.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pl-2">
+                        {d.pe_maneuvers.map((m, j) => (
+                          <Badge key={j} variant="outline" className="text-[10px]">
+                            {m}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* SOAP note */}
+          {soapNote && soapNote.diagnoses.length > 0 && (
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  SOAP Note Differential
+                </p>
+                {soapNote.diagnoses.map((d, i) => (
+                  <div key={i} className="space-y-1">
+                    <p className="text-sm font-medium">{d.diagnosis}</p>
+                    {d.evidence.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pl-2">
+                        {d.evidence.map((e, j) => (
+                          <Badge key={j} variant="secondary" className="text-[10px]">
+                            {e}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    {d.diagnostic_plan.length > 0 && (
+                      <div className="text-xs text-muted-foreground pl-2">
+                        <span className="font-medium">Dx: </span>
+                        {d.diagnostic_plan.join(", ")}
+                      </div>
+                    )}
+                    {d.therapeutic_plan.length > 0 && (
+                      <div className="text-xs text-muted-foreground pl-2">
+                        <span className="font-medium">Tx: </span>
+                        {d.therapeutic_plan.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function OsceFeedbackPage() {
   const router = useRouter();
   const params = useParams();
   const sessionId = params.sessionId as string;
 
+  const [session, setSession] = useState<OsceSession | null>(null);
   const [feedback, setFeedback] = useState<OSCEFeedbackResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,13 +144,14 @@ export default function OsceFeedbackPage() {
       try {
         const sessRes = await fetch(`/api/osce-session/${sessionId}`);
         if (!sessRes.ok) { router.push("/osce"); return; }
-        const { session }: { session: OsceSession } = await sessRes.json();
+        const { session: sess }: { session: OsceSession } = await sessRes.json();
+        setSession(sess);
 
-        if (session.status === "door_prep") { router.replace(`/osce/${sessionId}/door-prep`); return; }
-        if (session.status === "soap_note") { router.replace(`/osce/${sessionId}/soap-note`); return; }
+        if (sess.status === "door_prep") { router.replace(`/osce/${sessionId}/door-prep`); return; }
+        if (sess.status === "soap_note") { router.replace(`/osce/${sessionId}/soap-note`); return; }
 
-        if (session.feedback) {
-          setFeedback(session.feedback as OSCEFeedbackResult);
+        if (sess.feedback) {
+          setFeedback(sess.feedback as OSCEFeedbackResult);
           setLoading(false);
           return;
         }
@@ -75,7 +189,7 @@ export default function OsceFeedbackPage() {
   if (error) {
     return (
       <div className="p-4 space-y-4 max-w-2xl mx-auto">
-        <OsceProgress currentPhase="completed" />
+        <OsceProgress currentPhase="completed" sessionId={sessionId} sessionCompleted />
         <Card className="border-destructive/30">
           <CardContent className="p-6 text-center space-y-3">
             <AlertCircle className="h-6 w-6 text-destructive mx-auto" />
@@ -91,7 +205,7 @@ export default function OsceFeedbackPage() {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
-      <OsceProgress currentPhase="completed" />
+      <OsceProgress currentPhase="completed" sessionId={sessionId} sessionCompleted />
 
       <div className="flex items-center gap-2">
         <Stethoscope className="h-5 w-5 text-primary" />
@@ -172,6 +286,12 @@ export default function OsceFeedbackPage() {
           )}
         </>
       )}
+
+      {/* Submission review */}
+      <SubmissionReview
+        doorPrep={session?.door_prep ?? null}
+        soapNote={session?.soap_note ?? null}
+      />
 
       <Button
         variant="outline"

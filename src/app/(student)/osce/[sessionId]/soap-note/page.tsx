@@ -15,6 +15,8 @@ import { OsceProgress } from "@/components/osce-progress";
 import { DiagnosisInput } from "@/components/diagnosis-input";
 import { RevisedDiagnosisRow } from "@/components/revised-diagnosis-row";
 import { extractFindings } from "@/components/evidence-mapper";
+import { HighlightableText } from "@/components/highlightable-text";
+import type { Annotation } from "@/components/highlightable-text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +27,7 @@ import {
   FileText,
   AlertCircle,
   RotateCcw,
+  Eye,
 } from "lucide-react";
 
 export default function SoapNotePage() {
@@ -34,12 +37,15 @@ export default function SoapNotePage() {
   const sessionId = params.sessionId as string;
 
   const [session, setSession] = useState<OsceSession | null>(null);
+  const readOnly = session?.status === "completed";
   const [soapContext, setSoapContext] = useState<SoapContext | null>(null);
   const [contextLoading, setContextLoading] = useState(true);
   const [contextError, setContextError] = useState(false);
   const [diagnoses, setDiagnoses] = useState<RevisedDiagnosis[]>([]);
   const [showSO, setShowSO] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [subjAnnotations, setSubjAnnotations] = useState<Annotation[]>([]);
+  const [objAnnotations, setObjAnnotations] = useState<Annotation[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const soapData: SoapNoteData = {
@@ -51,7 +57,7 @@ export default function SoapNotePage() {
     sessionId,
     "soap_note",
     soapData,
-    diagnoses.length > 0
+    !readOnly && diagnoses.length > 0
   );
 
   // Extract findings from S/O for evidence mapper
@@ -72,13 +78,9 @@ export default function SoapNotePage() {
         const sess: OsceSession = data.session;
         setSession(sess);
 
-        // Redirect if not in soap_note phase
+        // Redirect back if still on door prep
         if (sess.status === "door_prep") {
           router.replace(`/osce/${sessionId}/door-prep`);
-          return;
-        }
-        if (sess.status === "completed") {
-          router.replace(`/osce/${sessionId}/feedback`);
           return;
         }
 
@@ -208,18 +210,25 @@ export default function SoapNotePage() {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
-      <OsceProgress currentPhase="soap_note" />
+      <OsceProgress currentPhase="soap_note" sessionId={sessionId} sessionCompleted={readOnly} />
 
-      {/* Transition message */}
-      <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
-        <CardContent className="p-4">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            You&apos;ve completed the patient encounter. Review the findings
-            below, then revise your differential with supporting evidence and
-            management plans.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Read-only banner or transition message */}
+      {readOnly ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+          <Eye className="h-3.5 w-3.5 shrink-0" />
+          Viewing submitted SOAP note — read only
+        </div>
+      ) : (
+        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+          <CardContent className="p-4">
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              You&apos;ve completed the patient encounter. Review the findings
+              below, then revise your differential with supporting evidence and
+              management plans.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* S/O Review Card */}
       <Card>
@@ -267,21 +276,30 @@ export default function SoapNotePage() {
                 </div>
               ) : soapContext ? (
                 <>
+                  <p className="text-[10px] text-muted-foreground">
+                    Select text to highlight or bold key findings
+                  </p>
                   <div>
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">
                       Subjective
                     </h4>
-                    <p className="text-sm whitespace-pre-line">
-                      {soapContext.subjective}
-                    </p>
+                    <HighlightableText
+                      text={soapContext.subjective}
+                      annotations={subjAnnotations}
+                      onChange={setSubjAnnotations}
+                      className="text-sm"
+                    />
                   </div>
                   <div>
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">
                       Objective
                     </h4>
-                    <p className="text-sm whitespace-pre-line">
-                      {soapContext.objective}
-                    </p>
+                    <HighlightableText
+                      text={soapContext.objective}
+                      annotations={objAnnotations}
+                      onChange={setObjAnnotations}
+                      className="text-sm"
+                    />
                   </div>
                 </>
               ) : (
@@ -294,18 +312,22 @@ export default function SoapNotePage() {
         </CardContent>
       </Card>
 
-      {/* Instructions */}
-      <p className="text-sm text-muted-foreground">
-        Revise your differential based on the encounter. For each diagnosis, map
-        supporting evidence, write an assessment, and plan diagnostic workup and
-        treatment.
-      </p>
+      {/* Instructions (active only) */}
+      {!readOnly && (
+        <p className="text-sm text-muted-foreground">
+          Revise your differential based on the encounter. For each diagnosis, map
+          supporting evidence, write an assessment, and plan diagnostic workup and
+          treatment.
+        </p>
+      )}
 
-      {/* Add diagnosis */}
-      <DiagnosisInput
-        onAdd={addDiagnosis}
-        existingDiagnoses={diagnoses.map((d) => d.diagnosis)}
-      />
+      {/* Add diagnosis (active only) */}
+      {!readOnly && (
+        <DiagnosisInput
+          onAdd={addDiagnosis}
+          existingDiagnoses={diagnoses.map((d) => d.diagnosis)}
+        />
+      )}
 
       {/* Revised diagnosis rows */}
       <div className="space-y-3">
@@ -316,6 +338,7 @@ export default function SoapNotePage() {
             index={i}
             total={diagnoses.length}
             findings={findings}
+            disabled={readOnly}
             onRemove={removeDiagnosis}
             onMoveUp={(idx) => moveDiagnosis(idx, "up")}
             onMoveDown={(idx) => moveDiagnosis(idx, "down")}
@@ -324,8 +347,8 @@ export default function SoapNotePage() {
         ))}
       </div>
 
-      {/* Save status */}
-      {saveStatus !== "idle" && (
+      {/* Save status (active only) */}
+      {!readOnly && saveStatus !== "idle" && (
         <p className="text-xs text-muted-foreground text-center">
           {saveStatus === "saving" && "Saving..."}
           {saveStatus === "saved" && "Saved"}
@@ -333,25 +356,27 @@ export default function SoapNotePage() {
         </p>
       )}
 
-      {/* Submit */}
-      <Button
-        onClick={handleSubmit}
-        disabled={diagnoses.length === 0 || submitting}
-        className="w-full"
-        size="lg"
-      >
-        {submitting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            Submitting...
-          </>
-        ) : (
-          <>
-            Submit for Feedback
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </>
-        )}
-      </Button>
+      {/* Submit (active only) */}
+      {!readOnly && (
+        <Button
+          onClick={handleSubmit}
+          disabled={diagnoses.length === 0 || submitting}
+          className="w-full"
+          size="lg"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Submitting...
+            </>
+          ) : (
+            <>
+              Submit for Feedback
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }
