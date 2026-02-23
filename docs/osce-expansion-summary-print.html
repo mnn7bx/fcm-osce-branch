@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>OSCE Practice Expansion — Engineering Summary</title>
+<style>
+  body { font-family: Georgia, serif; max-width: 860px; margin: 40px auto; padding: 0 24px; color: #111; font-size: 14px; line-height: 1.6; }
+  h1 { font-size: 24px; border-bottom: 2px solid #333; padding-bottom: 8px; }
+  h2 { font-size: 18px; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-top: 32px; }
+  h3 { font-size: 15px; margin-top: 24px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; font-weight: bold; }
+  code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-size: 12px; font-family: monospace; }
+  pre { background: #f4f4f4; padding: 12px 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+  pre code { background: none; padding: 0; }
+  blockquote { border-left: 3px solid #ccc; margin: 0; padding-left: 16px; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 24px 0; }
+  @media print {
+    body { margin: 0; }
+    h2 { page-break-before: auto; }
+  }
+</style>
+</head>
+<body>
+<h1>OSCE Practice Expansion — Engineering Summary</h1>
+<p><strong>Branch:</strong> <code>main</code>
+<strong>Date:</strong> February 2026
+<strong>Reviewer:</strong> Human code reviewer</p>
+<hr />
+<h2>Overview</h2>
+<p>This document summarizes the engineering work completed to expand the FCM Companion app with a full <strong>OSCE (Objective Structured Clinical Examination) practice simulation</strong>. The feature replaces the previous single-shot OSCE page with a structured three-phase workflow: <strong>Door Prep → SOAP Note → AI Feedback</strong>, along with session persistence, read-only review, and study aids.</p>
+<hr />
+<h2>What Was Built</h2>
+<h3>Phase A — Door Prep</h3>
+<p>Students review door information (chief complaint, patient demographics, vitals) and build an initial differential diagnosis before entering the room. For each diagnosis they record:</p>
+<ul>
+<li>Planned history questions (free text)</li>
+<li>Physical exam maneuvers (autocomplete from 117-entry vocabulary)</li>
+<li>Confidence rating (1–5)</li>
+</ul>
+<p><strong>Key files:</strong></p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/app/(student)/osce/page.tsx</code></td>
+<td>Home page — case picker, session history</td>
+</tr>
+<tr>
+<td><code>src/app/(student)/osce/[sessionId]/door-prep/page.tsx</code></td>
+<td>Door Prep phase UI</td>
+</tr>
+<tr>
+<td><code>src/components/door-prep-diagnosis-row.tsx</code></td>
+<td>Per-diagnosis card with questions + PE maneuvers</td>
+</tr>
+<tr>
+<td><code>src/components/autocomplete-input.tsx</code></td>
+<td>Generic scored autocomplete (injectable search fn)</td>
+</tr>
+<tr>
+<td><code>src/components/osce-progress.tsx</code></td>
+<td>Three-step progress indicator (Door Prep → SOAP → Feedback)</td>
+</tr>
+<tr>
+<td><code>src/data/pe-maneuvers.json</code></td>
+<td>117 PE maneuver entries</td>
+</tr>
+<tr>
+<td><code>src/data/pe-lookup.ts</code></td>
+<td>Scored search: exact abbrev 3.0, starts-with 2.0, substring 1.0</td>
+</tr>
+<tr>
+<td><code>src/lib/use-osce-autosave.ts</code></td>
+<td>500ms debounce autosave hook (PATCH to session API)</td>
+</tr>
+<tr>
+<td><code>src/app/api/osce-session/route.ts</code></td>
+<td>POST (create session), GET (list all user sessions)</td>
+</tr>
+<tr>
+<td><code>src/app/api/osce-session/[id]/route.ts</code></td>
+<td>GET (fetch), PATCH (update phase data)</td>
+</tr>
+<tr>
+<td><code>supabase/migration-osce-sessions.sql</code></td>
+<td>Database migration</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3>Phase B — SOAP Note</h3>
+<p>After the encounter, students revise their differential with post-encounter data. For each diagnosis they:</p>
+<ul>
+<li>Map supporting evidence from the Subjective/Objective findings</li>
+<li>Build a diagnostic plan (autocomplete from 120-entry vocabulary)</li>
+<li>Build a therapeutic plan (autocomplete from 120-entry vocabulary)</li>
+</ul>
+<p>The Subjective and Objective findings are loaded from a precomputed static file (see §Performance below). Students can highlight text in yellow or bold it to annotate key findings.</p>
+<p><strong>Key files:</strong></p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/app/(student)/osce/[sessionId]/soap-note/page.tsx</code></td>
+<td>SOAP Note phase UI</td>
+</tr>
+<tr>
+<td><code>src/components/revised-diagnosis-row.tsx</code></td>
+<td>Per-diagnosis card with evidence + plans</td>
+</tr>
+<tr>
+<td><code>src/components/evidence-mapper.tsx</code></td>
+<td>Finding extraction + toggle selection</td>
+</tr>
+<tr>
+<td><code>src/components/highlightable-text.tsx</code></td>
+<td>Select-to-highlight/bold annotation component</td>
+</tr>
+<tr>
+<td><code>src/data/diagnostic-tests.json</code></td>
+<td>120 diagnostic test entries</td>
+</tr>
+<tr>
+<td><code>src/data/therapeutic-options.json</code></td>
+<td>120 therapeutic option entries</td>
+</tr>
+<tr>
+<td><code>src/data/osce-soap-contexts.json</code></td>
+<td>Precomputed S/O for all 204 OSCE practice cases</td>
+</tr>
+<tr>
+<td><code>src/lib/osce-soap.ts</code></td>
+<td>S/O extraction logic + Claude prompt builder</td>
+</tr>
+<tr>
+<td><code>src/app/api/osce-soap-context/route.ts</code></td>
+<td>S/O lookup (static) + Claude fallback for FCM cases</td>
+</tr>
+<tr>
+<td><code>scripts/generate-soap-contexts.ts</code></td>
+<td>Build script: extracts S/O from all 204 cases</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3>Phase C — Feedback</h3>
+<p>AI-generated attending-style feedback displayed after SOAP note submission. Uses a two-step approach: deterministic comparison first, then Claude narrative.</p>
+<p><strong>Rubric categories scored:</strong> Differential Diagnosis, History Taking, Physical Exam Selection, Diagnostic Workup, Treatment Planning</p>
+<p><strong>Rating scale:</strong> <code>excellent</code> → <code>good</code> → <code>developing</code> → <code>needs_work</code></p>
+<p><strong>Feedback sections:</strong> Performance rubric, Strengths, Areas to Improve, Don't Miss (critical missed diagnoses)</p>
+<p><strong>Key files:</strong></p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/app/(student)/osce/[sessionId]/feedback/page.tsx</code></td>
+<td>Feedback display page</td>
+</tr>
+<tr>
+<td><code>src/components/rubric-score-card.tsx</code></td>
+<td>Color-coded rating card (green/blue/amber/muted)</td>
+</tr>
+<tr>
+<td><code>src/lib/osce-feedback.ts</code></td>
+<td><code>compareOscePerformance()</code> + <code>buildOsceFeedbackPrompt()</code></td>
+</tr>
+<tr>
+<td><code>src/app/api/osce-feedback/route.ts</code></td>
+<td>Calls Claude, caches result in session row</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Database</h2>
+<p><strong>New table:</strong> <code>fcm_osce_sessions</code></p>
+<pre><code class="language-sql">CREATE TABLE fcm_osce_sessions (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id               UUID REFERENCES fcm_users(id) NOT NULL,
+  case_id               UUID REFERENCES fcm_cases(id),
+  practice_case_id      TEXT,
+  case_source           TEXT NOT NULL CHECK (case_source IN ('scheduled','practice','custom')),
+  door_prep             JSONB,
+  door_prep_submitted_at TIMESTAMPTZ,
+  soap_note             JSONB,
+  soap_submitted_at     TIMESTAMPTZ,
+  feedback              JSONB,
+  feedback_generated_at TIMESTAMPTZ,
+  status                TEXT NOT NULL DEFAULT 'door_prep'
+                          CHECK (status IN ('door_prep','soap_note','completed')),
+  started_at            TIMESTAMPTZ DEFAULT now(),
+  completed_at          TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ DEFAULT now(),
+  updated_at            TIMESTAMPTZ DEFAULT now()
+);
+</code></pre>
+<p>All session data (door prep differential, SOAP note, AI feedback) is stored as JSONB. Permissive RLS policy matches existing tables. Indexes on <code>user_id</code> and <code>case_id</code>.</p>
+<hr />
+<h2>Session History &amp; Review</h2>
+<p>All completed sessions are persisted and viewable. The OSCE home page shows:</p>
+<ul>
+<li><strong>Continue Session</strong> — in-progress sessions with resume links</li>
+<li><strong>Past Sessions</strong> — completed sessions with rubric dot summary, date, first strength; shows 5 most recent with "Show all N sessions" toggle</li>
+<li><strong>Your Cases</strong> — FCM scheduled cases the student has submitted</li>
+<li><strong>Practice Library</strong> — all OSCE-format practice cases</li>
+</ul>
+<h3>Read-Only Review</h3>
+<p>Completed sessions can be reviewed in full. The progress bar at the top (Door Prep → SOAP Note → Feedback) is <strong>clickable</strong> — tapping any step navigates to that phase's read-only view. The active step is highlighted with a ring; all other completed steps show as filled.</p>
+<p>In read-only mode:
+- A "Viewing submitted ... — read only" banner replaces the instructions
+- Diagnosis rows start <strong>collapsed</strong>, showing a compact summary (e.g. "3 questions · 2 PE maneuvers")
+- Tapping a row <strong>expands</strong> it to show all submitted answers as read-only text/badges
+- Add/edit/remove controls are hidden
+- Autosave is disabled</p>
+<hr />
+<h2>Performance</h2>
+<p><strong>Root cause fix:</strong> All 204 OSCE practice cases store data under <code>full_case_data.OSCE_Examination</code>, but the original extractor looked at the top level. This caused every S/O load to fail and fall through to Claude (which was also timing out).</p>
+<p><strong>Fix:</strong> <code>scripts/generate-soap-contexts.ts</code> runs at build time, extracts S/O from all 204 cases deterministically, and writes <code>src/data/osce-soap-contexts.json</code>. The API route does a direct JSON key lookup — <strong>no network call, no Claude, instant response</strong> for all practice cases. Claude fallback is preserved for scheduled FCM cases (which have empty <code>full_case_data</code>).</p>
+<p>To regenerate after adding new cases:</p>
+<pre><code class="language-bash">npm run data:soap
+</code></pre>
+<hr />
+<h2>UX Details</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Door card</td>
+<td>Sticks to top while scrolling; shows patient name, age, gender independently (not requiring both)</td>
+</tr>
+<tr>
+<td>Demographics</td>
+<td>Patient name shown for scheduled FCM cases; age/gender shown even if only one is available</td>
+</tr>
+<tr>
+<td>S/O load failure</td>
+<td>Inline error with Retry button; SOAP note still fully submittable</td>
+</tr>
+<tr>
+<td>Text annotation</td>
+<td>Select text in S/O sections → floating toolbar → highlight (yellow) or bold; section labels auto-bolded</td>
+</tr>
+<tr>
+<td>Progress bar</td>
+<td>Updates to reflect actual phase being viewed during review; all connector lines filled for completed sessions</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Files Changed</h2>
+<h3>New Files (30)</h3>
+<pre><code>supabase/migration-osce-sessions.sql
+src/types/osce.ts
+src/data/pe-maneuvers.json
+src/data/pe-lookup.ts
+src/data/diagnostic-tests.json
+src/data/diagnostic-test-lookup.ts
+src/data/therapeutic-options.json
+src/data/therapeutic-lookup.ts
+src/data/osce-soap-contexts.json
+src/components/autocomplete-input.tsx
+src/components/osce-progress.tsx
+src/components/door-prep-diagnosis-row.tsx
+src/components/revised-diagnosis-row.tsx
+src/components/evidence-mapper.tsx
+src/components/rubric-score-card.tsx
+src/components/highlightable-text.tsx
+src/lib/use-osce-autosave.ts
+src/lib/osce-soap.ts
+src/lib/osce-feedback.ts
+src/app/(student)/osce/page.tsx            ← replaced
+src/app/(student)/osce/[sessionId]/page.tsx
+src/app/(student)/osce/[sessionId]/door-prep/page.tsx
+src/app/(student)/osce/[sessionId]/soap-note/page.tsx
+src/app/(student)/osce/[sessionId]/feedback/page.tsx
+src/app/api/osce-session/route.ts
+src/app/api/osce-session/[id]/route.ts
+src/app/api/osce-feedback/route.ts
+src/app/api/osce-soap-context/route.ts
+scripts/generate-soap-contexts.ts
+</code></pre>
+<h3>Modified Files (3)</h3>
+<pre><code>src/types/index.ts          — re-exports from osce.ts
+src/app/(student)/layout.tsx — OSCE added to nav
+supabase/schema.sql          — fcm_osce_sessions table definition
+</code></pre>
+<hr />
+<h2>How to Verify</h2>
+<ol>
+<li>Navigate to <code>/osce</code> — case picker loads with Practice Library and any scheduled cases</li>
+<li>Start a practice case — session created in <code>fcm_osce_sessions</code>, navigates to Door Prep</li>
+<li>Door Prep: demographics visible and sticky; add diagnoses with history questions + PE maneuvers; autosave on changes; submit advances to SOAP Note</li>
+<li>SOAP Note: S/O loads instantly from static file; highlight text; map evidence; add diagnostic/therapeutic plans; submit advances to Feedback</li>
+<li>Feedback: rubric scores, strengths, improvements, don't-miss items displayed</li>
+<li>Return to <code>/osce</code> — completed session appears in Past Sessions with rubric dots</li>
+<li>Tap a past session → Feedback page; tap "Door Prep" or "SOAP Note" in progress bar → read-only review; tap diagnoses to expand/collapse submitted answers</li>
+<li>Check <code>fcm_osce_sessions</code> table in Supabase — all data persisted correctly</li>
+</ol>
+<hr />
+<p><em>Generated by Claude Sonnet 4.6 — FCM Companion OSCE Expansion</em></p>
+</body>
+</html>
