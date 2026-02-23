@@ -24,6 +24,7 @@ export default function DoorPrepPage() {
   const [session, setSession] = useState<OsceSession | null>(null);
   const [caseInfo, setCaseInfo] = useState<{
     chief_complaint: string;
+    patient_name?: string | null;
     patient_age?: number | null;
     patient_gender?: string | null;
     vitals?: Record<string, string>;
@@ -82,7 +83,7 @@ export default function DoorPrepPage() {
         } else if (sess.case_id) {
           const { data: caseData } = await supabase
             .from("fcm_cases")
-            .select("chief_complaint, patient_age, patient_gender, vitals, body_system")
+            .select("chief_complaint, patient_name, patient_age, patient_gender, vitals, body_system")
             .eq("id", sess.case_id)
             .single();
           if (caseData) setCaseInfo(caseData);
@@ -168,9 +169,9 @@ export default function DoorPrepPage() {
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
       <OsceProgress currentPhase="door_prep" />
 
-      {/* Door card */}
+      {/* Door card — sticky so demographics stay visible while scrolling */}
       {caseInfo && (
-        <Card className="border-primary/30 bg-accent/20">
+        <Card className="border-primary/30 bg-accent/20 sticky top-2 z-10">
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4 text-primary" />
@@ -180,9 +181,14 @@ export default function DoorPrepPage() {
             </div>
             <p className="text-sm font-medium">{caseInfo.chief_complaint}</p>
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {caseInfo.patient_age && caseInfo.patient_gender && (
+              {caseInfo.patient_name && (
+                <span className="font-medium">{caseInfo.patient_name}</span>
+              )}
+              {(caseInfo.patient_age || caseInfo.patient_gender) && (
                 <span>
-                  {caseInfo.patient_age}yo {caseInfo.patient_gender}
+                  {caseInfo.patient_age ? `${caseInfo.patient_age}yo` : ""}
+                  {caseInfo.patient_age && caseInfo.patient_gender ? " " : ""}
+                  {caseInfo.patient_gender ?? ""}
                 </span>
               )}
               {caseInfo.body_system && (

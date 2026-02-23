@@ -23,6 +23,8 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  AlertCircle,
+  RotateCcw,
 } from "lucide-react";
 
 export default function SoapNotePage() {
@@ -34,6 +36,7 @@ export default function SoapNotePage() {
   const [session, setSession] = useState<OsceSession | null>(null);
   const [soapContext, setSoapContext] = useState<SoapContext | null>(null);
   const [contextLoading, setContextLoading] = useState(true);
+  const [contextError, setContextError] = useState(false);
   const [diagnoses, setDiagnoses] = useState<RevisedDiagnosis[]>([]);
   const [showSO, setShowSO] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -105,26 +108,38 @@ export default function SoapNotePage() {
         setLoading(false);
 
         // Fetch S/O context
-        const ctxRes = await fetch("/api/osce-soap-context", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionId }),
-        });
-
-        if (ctxRes.ok) {
-          const ctx = await ctxRes.json();
-          setSoapContext(ctx);
-        }
+        fetchSoapContext();
       } catch {
         router.push("/osce");
       } finally {
-        setContextLoading(false);
         setLoading(false);
       }
     }
 
     load();
-  }, [sessionId, router]);
+  }, [sessionId, router]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function fetchSoapContext() {
+    setContextLoading(true);
+    setContextError(false);
+    try {
+      const ctxRes = await fetch("/api/osce-soap-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      if (ctxRes.ok) {
+        const ctx = await ctxRes.json();
+        setSoapContext(ctx);
+      } else {
+        setContextError(true);
+      }
+    } catch {
+      setContextError(true);
+    } finally {
+      setContextLoading(false);
+    }
+  }
 
   const addDiagnosis = useCallback((name: string) => {
     setDiagnoses((prev) => [
@@ -233,6 +248,22 @@ export default function SoapNotePage() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading findings...
+                </div>
+              ) : contextError ? (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    Unable to load subjective findings.
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchSoapContext}
+                    className="shrink-0 text-xs"
+                  >
+                    <RotateCcw className="h-3 w-3 mr-1" />
+                    Retry
+                  </Button>
                 </div>
               ) : soapContext ? (
                 <>
