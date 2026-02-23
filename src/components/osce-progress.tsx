@@ -35,15 +35,16 @@ export function OsceProgress({
   }
 
   return (
-    <div className="flex items-center justify-center gap-3 py-3">
-      {steps.map((step, i) => {
-        // When session is completed, all non-current steps are shown as done
-        const isComplete = sessionCompleted ? i !== currentIndex : i < currentIndex;
-        const isCurrent = i === currentIndex;
-        const isClickable = !!sessionId && !!sessionCompleted && !isCurrent;
-        return (
-          <div key={step.key} className="flex items-center gap-3">
-            <div className="flex flex-col items-center gap-1">
+    <div className="py-3">
+      {/* Segmented bar */}
+      <div className="flex gap-1">
+        {steps.map((step, i) => {
+          const isComplete = sessionCompleted ? true : i < currentIndex;
+          const isCurrent = i === currentIndex;
+          const isUpcoming = !isComplete && !isCurrent;
+          const isClickable = !!sessionId && !!sessionCompleted;
+          return (
+            <div key={step.key} className="flex-1 flex flex-col gap-1.5">
               <div
                 role={isClickable ? "button" : undefined}
                 tabIndex={isClickable ? 0 : undefined}
@@ -54,21 +55,17 @@ export function OsceProgress({
                   }
                 }}
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors",
-                  isComplete
-                    ? "bg-primary text-primary-foreground"
-                    : isCurrent
-                    ? "bg-primary text-primary-foreground ring-2 ring-primary/30 ring-offset-2"
-                    : "bg-muted text-muted-foreground",
+                  "h-2 rounded-full transition-colors",
+                  isComplete && !isCurrent && "bg-primary",
+                  isCurrent && "bg-primary",
+                  isUpcoming && "bg-muted",
                   isClickable && "cursor-pointer hover:opacity-80"
                 )}
-              >
-                {isComplete ? "✓" : i + 1}
-              </div>
+              />
               <span
                 onClick={() => isClickable && handleStepClick(step.key)}
                 className={cn(
-                  "text-[10px] font-medium",
+                  "text-[10px] font-medium text-center",
                   isCurrent ? "text-primary" : "text-muted-foreground",
                   isClickable && "cursor-pointer hover:text-foreground transition-colors"
                 )}
@@ -76,17 +73,9 @@ export function OsceProgress({
                 {step.label}
               </span>
             </div>
-            {i < steps.length - 1 && (
-              <div
-                className={cn(
-                  "h-px w-8 -mt-4",
-                  (sessionCompleted || i < currentIndex) ? "bg-primary" : "bg-muted"
-                )}
-              />
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

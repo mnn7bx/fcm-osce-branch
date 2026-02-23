@@ -222,6 +222,7 @@ export function RevisedDiagnosisRow({
                   searchFn={searchDiagnosticTests}
                   placeholder="Search or type (CBC, CXR, CT...)"
                   minChars={2}
+                  hideAddButton
                 />
                 {diagnosis.diagnostic_plan.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
@@ -269,6 +270,7 @@ export function RevisedDiagnosisRow({
                   searchFn={searchTherapeuticOptions}
                   placeholder="Search or type (IV fluids, O2, NSAIDs...)"
                   minChars={2}
+                  hideAddButton
                 />
                 {diagnosis.therapeutic_plan.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">

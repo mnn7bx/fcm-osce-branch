@@ -18,7 +18,9 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   ClipboardList,
+  FileText,
 } from "lucide-react";
 
 function SubmissionReview({
@@ -210,6 +212,38 @@ export default function OsceFeedbackPage() {
       <div className="flex items-center gap-2">
         <Stethoscope className="h-5 w-5 text-primary" />
         <h1 className="text-lg font-semibold">OSCE Feedback</h1>
+      </div>
+
+      {/* Review step CTAs */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => router.push(`/osce/${sessionId}/door-prep`)}
+          className="flex items-center gap-3 rounded-lg border p-3 text-left hover:bg-accent/50 transition-colors"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
+            <ClipboardList className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Review Door Prep</p>
+            <p className="text-[10px] text-muted-foreground">Step 1</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push(`/osce/${sessionId}/soap-note`)}
+          className="flex items-center gap-3 rounded-lg border p-3 text-left hover:bg-accent/50 transition-colors"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
+            <FileText className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Review SOAP Note</p>
+            <p className="text-[10px] text-muted-foreground">Step 2</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </button>
       </div>
 
       {feedback && (

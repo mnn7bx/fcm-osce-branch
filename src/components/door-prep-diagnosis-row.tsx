@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { DoorPrepDiagnosis } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronUp, ChevronDown, X, Plus } from "lucide-react";
+import { ChevronUp, ChevronDown, X } from "lucide-react";
 import { ConfidenceRating } from "@/components/confidence-rating";
 import { AutocompleteInput } from "@/components/autocomplete-input";
 import { searchPEManeuvers } from "@/data/pe-lookup";
@@ -32,17 +32,10 @@ export function DoorPrepDiagnosisRow({
   onUpdate: (i: number, updated: DoorPrepDiagnosis) => void;
 }) {
   const [expanded, setExpanded] = useState(!disabled);
-  const [showQuestions, setShowQuestions] = useState(
-    diagnosis.history_questions.length > 0
-  );
+  const newQuestionRef = useRef<HTMLInputElement>(null);
 
   function updateField(fields: Partial<DoorPrepDiagnosis>) {
     onUpdate(index, { ...diagnosis, ...fields });
-  }
-
-  function addQuestion() {
-    updateField({ history_questions: [...diagnosis.history_questions, ""] });
-    if (!showQuestions) setShowQuestions(true);
   }
 
   function updateQuestion(qi: number, value: string) {
@@ -57,6 +50,30 @@ export function DoorPrepDiagnosisRow({
     });
   }
 
+  function handleQuestionKeyDown(
+    e: React.KeyboardEvent<HTMLInputElement>,
+    qi: number
+  ) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const val = diagnosis.history_questions[qi]?.trim();
+      if (val) {
+        // Add a new empty question and focus it
+        updateField({
+          history_questions: [...diagnosis.history_questions, ""],
+        });
+        setTimeout(() => newQuestionRef.current?.focus(), 50);
+      }
+    } else if (
+      e.key === "Backspace" &&
+      !diagnosis.history_questions[qi] &&
+      diagnosis.history_questions.length > 1
+    ) {
+      e.preventDefault();
+      removeQuestion(qi);
+    }
+  }
+
   function addManeuver(term: string) {
     updateField({ pe_maneuvers: [...diagnosis.pe_maneuvers, term] });
   }
@@ -68,6 +85,22 @@ export function DoorPrepDiagnosisRow({
   }
 
   const filledQuestions = diagnosis.history_questions.filter((q) => q.trim());
+
+  // Ensure at least one empty input row when editing
+  const questionRows =
+    !disabled && diagnosis.history_questions.length === 0
+      ? [""]
+      : diagnosis.history_questions;
+
+  // Keep questions state in sync — if we showed a placeholder row, sync it up
+  if (!disabled && diagnosis.history_questions.length === 0 && questionRows.length === 1) {
+    // Lazily initialize with one empty question
+    setTimeout(() => {
+      if (diagnosis.history_questions.length === 0) {
+        updateField({ history_questions: [""] });
+      }
+    }, 0);
+  }
 
   return (
     <Card className="py-3">
@@ -187,29 +220,24 @@ export function DoorPrepDiagnosisRow({
               )
             ) : (
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    History Questions
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={addQuestion}
-                    className="h-6 text-xs px-2"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add
-                  </Button>
-                </div>
-                {showQuestions &&
-                  diagnosis.history_questions.map((q, qi) => (
-                    <div key={qi} className="flex gap-1.5">
-                      <Input
-                        value={q}
-                        onChange={(e) => updateQuestion(qi, e.target.value)}
-                        placeholder={`Question ${qi + 1}...`}
-                        className="h-8 text-xs"
-                      />
+                <span className="text-xs font-medium text-muted-foreground">
+                  History Questions
+                </span>
+                {questionRows.map((q, qi) => (
+                  <div key={qi} className="flex gap-1.5">
+                    <Input
+                      ref={qi === questionRows.length - 1 ? newQuestionRef : undefined}
+                      value={q}
+                      onChange={(e) => updateQuestion(qi, e.target.value)}
+                      onKeyDown={(e) => handleQuestionKeyDown(e, qi)}
+                      placeholder={
+                        qi === 0
+                          ? "Type a question and press Enter..."
+                          : `Question ${qi + 1}...`
+                      }
+                      className="h-8 text-xs"
+                    />
+                    {questionRows.length > 1 && (
                       <Button
                         variant="ghost"
                         size="icon-xs"
@@ -218,8 +246,9 @@ export function DoorPrepDiagnosisRow({
                       >
                         <X className="h-3 w-3" />
                       </Button>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 

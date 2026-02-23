@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/lib/user-context";
@@ -9,7 +9,8 @@ import { PRACTICE_CASES } from "@/data/practice-cases";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Play, RotateCcw, Stethoscope, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, Play, RotateCcw, Stethoscope, ChevronRight, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ratingDotClass: Record<string, string> = {
@@ -65,9 +66,56 @@ export default function OscePage() {
   const [starting, setStarting] = useState<string | null>(null);
   const [showAllSessions, setShowAllSessions] = useState(false);
 
+  // Practice Library filters
+  const [practiceSearch, setPracticeSearch] = useState("");
+  const [practiceBodySystem, setPracticeBodySystem] = useState("");
+  const [practiceSort, setPracticeSort] = useState<"default" | "alpha" | "difficulty">("default");
+
   const SESSIONS_PREVIEW = 5;
 
   const oscePracticeCases = PRACTICE_CASES.filter((c: PracticeCase) => c.has_structured_exam);
+
+  // Derive unique body systems from OSCE practice cases
+  const bodySystems = useMemo(() => {
+    const systems = new Set<string>();
+    for (const c of oscePracticeCases) {
+      if (c.body_system) systems.add(c.body_system);
+    }
+    return Array.from(systems).sort();
+  }, [oscePracticeCases]);
+
+  // Filter and sort practice cases
+  const filteredPracticeCases = useMemo(() => {
+    const q = practiceSearch.toLowerCase().trim();
+    let result = oscePracticeCases.filter((c: PracticeCase) => {
+      if (practiceBodySystem && c.body_system !== practiceBodySystem) return false;
+      if (q) {
+        const searchable = [
+          c.chief_complaint,
+          c.patient_age ? `${c.patient_age}` : "",
+          c.patient_gender ?? "",
+          c.body_system ?? "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!searchable.includes(q)) return false;
+      }
+      return true;
+    });
+
+    if (practiceSort === "alpha") {
+      result = [...result].sort((a, b) =>
+        a.chief_complaint.localeCompare(b.chief_complaint)
+      );
+    } else if (practiceSort === "difficulty") {
+      const order: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
+      result = [...result].sort(
+        (a, b) => (order[a.difficulty] ?? 1) - (order[b.difficulty] ?? 1)
+      );
+    }
+
+    return result;
+  }, [oscePracticeCases, practiceSearch, practiceBodySystem, practiceSort]);
 
   useEffect(() => {
     async function fetchData() {
@@ -299,6 +347,7 @@ export default function OscePage() {
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Practice Library
         </h2>
+
         {oscePracticeCases.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center text-sm text-muted-foreground">
@@ -306,34 +355,82 @@ export default function OscePage() {
             </CardContent>
           </Card>
         ) : (
-          oscePracticeCases.map((c: PracticeCase) => (
-            <Card key={c.id}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">{c.chief_complaint}</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                  {c.patient_age && c.patient_gender && (
-                    <span>{c.patient_age}yo {c.patient_gender}</span>
-                  )}
-                  {c.body_system && <Badge variant="outline">{c.body_system}</Badge>}
-                  <Badge variant="outline">{c.difficulty}</Badge>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => startSession("practice", undefined, c.id)}
-                  disabled={starting === c.id}
-                >
-                  {starting === c.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-                  ) : (
-                    <Play className="h-3.5 w-3.5 mr-1" />
-                  )}
-                  Start Practice
-                </Button>
-              </CardContent>
-            </Card>
-          ))
+          <>
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={practiceSearch}
+                onChange={(e) => setPracticeSearch(e.target.value)}
+                placeholder="Search by complaint, demographics..."
+                className="pl-9 h-11"
+              />
+            </div>
+
+            {/* Filters */}
+            <div className="flex gap-2 flex-wrap">
+              <select
+                value={practiceBodySystem}
+                onChange={(e) => setPracticeBodySystem(e.target.value)}
+                className="rounded-md border bg-background px-3 py-1.5 text-sm"
+              >
+                <option value="">All Body Systems</option>
+                {bodySystems.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={practiceSort}
+                onChange={(e) => setPracticeSort(e.target.value as "default" | "alpha" | "difficulty")}
+                className="rounded-md border bg-background px-3 py-1.5 text-sm"
+              >
+                <option value="default">Default Order</option>
+                <option value="alpha">Alphabetical</option>
+                <option value="difficulty">Difficulty</option>
+              </select>
+            </div>
+
+            {/* Case list */}
+            {filteredPracticeCases.length === 0 ? (
+              <div className="py-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No cases match your search.
+                </p>
+              </div>
+            ) : (
+              filteredPracticeCases.map((c: PracticeCase) => (
+                <Card key={c.id}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{c.chief_complaint}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                      {c.patient_age && c.patient_gender && (
+                        <span>{c.patient_age}yo {c.patient_gender}</span>
+                      )}
+                      {c.body_system && <Badge variant="outline">{c.body_system}</Badge>}
+                      <Badge variant="outline">{c.difficulty}</Badge>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => startSession("practice", undefined, c.id)}
+                      disabled={starting === c.id}
+                    >
+                      {starting === c.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      Start Practice
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </>
         )}
       </section>
     </div>

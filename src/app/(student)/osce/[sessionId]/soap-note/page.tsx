@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useUser } from "@/lib/user-context";
 import { useOsceAutosave } from "@/lib/use-osce-autosave";
@@ -16,19 +16,34 @@ import { DiagnosisInput } from "@/components/diagnosis-input";
 import { RevisedDiagnosisRow } from "@/components/revised-diagnosis-row";
 import { extractFindings } from "@/components/evidence-mapper";
 import { HighlightableText } from "@/components/highlightable-text";
-import type { Annotation } from "@/components/highlightable-text";
+import type { Annotation, LinkedFinding } from "@/components/highlightable-text";
+import { InstructionBanner } from "@/components/instruction-banner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
   ArrowRight,
-  ChevronDown,
-  ChevronUp,
   FileText,
   AlertCircle,
   RotateCcw,
   Eye,
+  Stethoscope,
+  ClipboardCheck,
 } from "lucide-react";
+
+/** Color palette for diagnosis-evidence linking */
+const LINK_COLORS = [
+  "#3b82f6", // blue
+  "#10b981", // emerald
+  "#f59e0b", // amber
+  "#ef4444", // red
+  "#8b5cf6", // violet
+  "#ec4899", // pink
+  "#06b6d4", // cyan
+  "#f97316", // orange
+  "#6366f1", // indigo
+  "#14b8a6", // teal
+];
 
 export default function SoapNotePage() {
   const { user } = useUser();
@@ -42,11 +57,13 @@ export default function SoapNotePage() {
   const [contextLoading, setContextLoading] = useState(true);
   const [contextError, setContextError] = useState(false);
   const [diagnoses, setDiagnoses] = useState<RevisedDiagnosis[]>([]);
-  const [showSO, setShowSO] = useState(true);
   const [loading, setLoading] = useState(true);
   const [subjAnnotations, setSubjAnnotations] = useState<Annotation[]>([]);
   const [objAnnotations, setObjAnnotations] = useState<Annotation[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [activeDiagnosisIndex, setActiveDiagnosisIndex] = useState<number | null>(null);
+
+  const diagnosisRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const soapData: SoapNoteData = {
     subjective_review: "",
@@ -65,6 +82,14 @@ export default function SoapNotePage() {
     if (!soapContext) return [];
     return extractFindings(soapContext.subjective, soapContext.objective);
   }, [soapContext]);
+
+  // Build linked findings for the active diagnosis
+  const linkedFindings = useMemo((): LinkedFinding[] => {
+    if (activeDiagnosisIndex === null || !diagnoses[activeDiagnosisIndex]) return [];
+    const dx = diagnoses[activeDiagnosisIndex];
+    const color = LINK_COLORS[activeDiagnosisIndex % LINK_COLORS.length];
+    return dx.evidence.map((text) => ({ text, color }));
+  }, [activeDiagnosisIndex, diagnoses]);
 
   useEffect(() => {
     async function load() {
@@ -159,6 +184,7 @@ export default function SoapNotePage() {
 
   function removeDiagnosis(i: number) {
     setDiagnoses((prev) => prev.filter((_, idx) => idx !== i));
+    if (activeDiagnosisIndex === i) setActiveDiagnosisIndex(null);
   }
 
   function moveDiagnosis(i: number, direction: "up" | "down") {
@@ -173,6 +199,22 @@ export default function SoapNotePage() {
 
   function updateDiagnosis(i: number, updated: RevisedDiagnosis) {
     setDiagnoses((prev) => prev.map((d, idx) => (idx === i ? updated : d)));
+  }
+
+  /** When a finding in S/O text is clicked, scroll to the diagnosis that cited it */
+  function handleFindingClick(findingText: string) {
+    const idx = diagnoses.findIndex((d) =>
+      d.evidence.some((e) => e.toLowerCase() === findingText.toLowerCase())
+    );
+    if (idx !== -1) {
+      setActiveDiagnosisIndex(idx);
+      const el = diagnosisRefs.current.get(idx);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-primary/50");
+        setTimeout(() => el.classList.remove("ring-2", "ring-primary/50"), 1500);
+      }
+    }
   }
 
   async function handleSubmit() {
@@ -208,117 +250,92 @@ export default function SoapNotePage() {
     );
   }
 
-  return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto">
-      <OsceProgress currentPhase="soap_note" sessionId={sessionId} sessionCompleted={readOnly} />
+  const soContent = (
+    <>
+      {contextLoading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground p-4">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading findings...
+        </div>
+      ) : contextError ? (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Unable to load subjective findings.
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchSoapContext}
+            className="shrink-0 text-xs"
+          >
+            <RotateCcw className="h-3 w-3 mr-1" />
+            Retry
+          </Button>
+        </div>
+      ) : soapContext ? (
+        <div className="space-y-3">
+          <InstructionBanner>
+            Select text to highlight or bold key findings
+          </InstructionBanner>
 
-      {/* Read-only banner or transition message */}
-      {readOnly ? (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
-          <Eye className="h-3.5 w-3.5 shrink-0" />
-          Viewing submitted SOAP note — read only
+          {/* Subjective Card */}
+          <Card className="border-l-4 border-l-blue-400">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4 text-blue-500" />
+                <h4 className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase">
+                  Subjective
+                </h4>
+              </div>
+              <HighlightableText
+                text={soapContext.subjective}
+                annotations={subjAnnotations}
+                onChange={setSubjAnnotations}
+                className="text-sm"
+                linkedFindings={linkedFindings}
+                onFindingClick={handleFindingClick}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Objective Card */}
+          <Card className="border-l-4 border-l-teal-400">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Stethoscope className="h-4 w-4 text-teal-500" />
+                <h4 className="text-xs font-semibold text-teal-700 dark:text-teal-300 uppercase">
+                  Objective
+                </h4>
+              </div>
+              <HighlightableText
+                text={soapContext.objective}
+                annotations={objAnnotations}
+                onChange={setObjAnnotations}
+                className="text-sm"
+                linkedFindings={linkedFindings}
+                onFindingClick={handleFindingClick}
+              />
+            </CardContent>
+          </Card>
         </div>
       ) : (
-        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
-          <CardContent className="p-4">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              You&apos;ve completed the patient encounter. Review the findings
-              below, then revise your differential with supporting evidence and
-              management plans.
-            </p>
-          </CardContent>
-        </Card>
+        <p className="text-sm text-muted-foreground">
+          No S/O data available for this case.
+        </p>
       )}
+    </>
+  );
 
-      {/* S/O Review Card */}
-      <Card>
-        <CardContent className="p-4 space-y-2">
-          <button
-            type="button"
-            onClick={() => setShowSO(!showSO)}
-            className="flex items-center justify-between w-full"
-          >
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">
-                Subjective & Objective
-              </span>
-            </div>
-            {showSO ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            )}
-          </button>
-
-          {showSO && (
-            <div className="space-y-3 pt-2">
-              {contextLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading findings...
-                </div>
-              ) : contextError ? (
-                <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
-                  <div className="flex items-center gap-2 text-sm text-destructive">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    Unable to load subjective findings.
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={fetchSoapContext}
-                    className="shrink-0 text-xs"
-                  >
-                    <RotateCcw className="h-3 w-3 mr-1" />
-                    Retry
-                  </Button>
-                </div>
-              ) : soapContext ? (
-                <>
-                  <p className="text-[10px] text-muted-foreground">
-                    Select text to highlight or bold key findings
-                  </p>
-                  <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">
-                      Subjective
-                    </h4>
-                    <HighlightableText
-                      text={soapContext.subjective}
-                      annotations={subjAnnotations}
-                      onChange={setSubjAnnotations}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">
-                      Objective
-                    </h4>
-                    <HighlightableText
-                      text={soapContext.objective}
-                      annotations={objAnnotations}
-                      onChange={setObjAnnotations}
-                      className="text-sm"
-                    />
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No S/O data available for this case.
-                </p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
+  const diagnosesContent = (
+    <>
       {/* Instructions (active only) */}
       {!readOnly && (
-        <p className="text-sm text-muted-foreground">
+        <InstructionBanner>
           Revise your differential based on the encounter. For each diagnosis, map
           supporting evidence, write an assessment, and plan diagnostic workup and
           treatment.
-        </p>
+        </InstructionBanner>
       )}
 
       {/* Add diagnosis (active only) */}
@@ -332,18 +349,35 @@ export default function SoapNotePage() {
       {/* Revised diagnosis rows */}
       <div className="space-y-3">
         {diagnoses.map((d, i) => (
-          <RevisedDiagnosisRow
+          <div
             key={`${d.diagnosis}-${i}`}
-            diagnosis={d}
-            index={i}
-            total={diagnoses.length}
-            findings={findings}
-            disabled={readOnly}
-            onRemove={removeDiagnosis}
-            onMoveUp={(idx) => moveDiagnosis(idx, "up")}
-            onMoveDown={(idx) => moveDiagnosis(idx, "down")}
-            onUpdate={updateDiagnosis}
-          />
+            ref={(el) => {
+              if (el) diagnosisRefs.current.set(i, el);
+              else diagnosisRefs.current.delete(i);
+            }}
+            onMouseEnter={() => setActiveDiagnosisIndex(i)}
+            onMouseLeave={() => setActiveDiagnosisIndex(null)}
+            onFocus={() => setActiveDiagnosisIndex(i)}
+            className="rounded-lg transition-shadow"
+            style={{
+              boxShadow:
+                activeDiagnosisIndex === i
+                  ? `0 0 0 2px ${LINK_COLORS[i % LINK_COLORS.length]}40`
+                  : undefined,
+            }}
+          >
+            <RevisedDiagnosisRow
+              diagnosis={d}
+              index={i}
+              total={diagnoses.length}
+              findings={findings}
+              disabled={readOnly}
+              onRemove={removeDiagnosis}
+              onMoveUp={(idx) => moveDiagnosis(idx, "up")}
+              onMoveDown={(idx) => moveDiagnosis(idx, "down")}
+              onUpdate={updateDiagnosis}
+            />
+          </div>
         ))}
       </div>
 
@@ -377,6 +411,43 @@ export default function SoapNotePage() {
           )}
         </Button>
       )}
+    </>
+  );
+
+  return (
+    <div className="p-4 space-y-4 max-w-6xl mx-auto">
+      <OsceProgress currentPhase="soap_note" sessionId={sessionId} sessionCompleted={readOnly} />
+
+      {/* Read-only banner or transition message */}
+      {readOnly ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+          <Eye className="h-3.5 w-3.5 shrink-0" />
+          Viewing submitted SOAP note — read only
+        </div>
+      ) : (
+        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+          <CardContent className="p-4">
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              You&apos;ve completed the patient encounter. Review the findings
+              below, then revise your differential with supporting evidence and
+              management plans.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Two-column layout on desktop, stacked on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Left column: S/O (sticky on desktop) */}
+        <div className="md:sticky md:top-4 md:self-start md:max-h-[calc(100dvh-6rem)] md:overflow-y-auto space-y-3">
+          {soContent}
+        </div>
+
+        {/* Right column: Diagnoses */}
+        <div className="space-y-4">
+          {diagnosesContent}
+        </div>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { DoorPrepDiagnosisRow } from "@/components/door-prep-diagnosis-row";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InstructionBanner } from "@/components/instruction-banner";
 import { Loader2, ClipboardList, ArrowRight, Eye } from "lucide-react";
 
 export default function DoorPrepPage() {
@@ -212,10 +213,10 @@ export default function DoorPrepPage() {
 
       {/* Instructions (active only) */}
       {!readOnly && (
-        <p className="text-sm text-muted-foreground">
+        <InstructionBanner>
           Build your differential: for each diagnosis, list the history questions
           you would ask and the PE maneuvers you would perform.
-        </p>
+        </InstructionBanner>
       )}
 
       {/* Diagnosis input (active only) */}
