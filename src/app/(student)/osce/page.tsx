@@ -189,8 +189,27 @@ export default function OscePage() {
     );
   }
 
-  const inProgressSessions = sessions.filter((s) => s.status !== "completed");
-  const completedSessions = sessions.filter((s) => s.status === "completed");
+  const q = practiceSearch.toLowerCase().trim();
+
+  const inProgressSessions = sessions.filter((s) => {
+    if (s.status === "completed") return false;
+    if (!q) return true;
+    return getCaseLabel(s, scheduledCases).toLowerCase().includes(q);
+  });
+
+  const completedSessions = sessions.filter((s) => {
+    if (s.status !== "completed") return false;
+    if (!q) return true;
+    return getCaseLabel(s, scheduledCases).toLowerCase().includes(q);
+  });
+
+  const filteredScheduledCases = scheduledCases.filter((c) => {
+    if (!q) return true;
+    return [c.chief_complaint, c.body_system ?? "", c.difficulty ?? ""]
+      .join(" ")
+      .toLowerCase()
+      .includes(q);
+  });
 
   return (
     <div className="p-4 space-y-6 max-w-2xl mx-auto">
@@ -360,12 +379,12 @@ export default function OscePage() {
       )}
 
       {/* Scheduled cases */}
-      {scheduledCases.length > 0 && (
+      {filteredScheduledCases.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Your Cases
           </h2>
-          {scheduledCases.map((c) => (
+          {filteredScheduledCases.map((c) => (
             <Card key={c.id}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">{c.chief_complaint}</CardTitle>
