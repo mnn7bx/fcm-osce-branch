@@ -65,6 +65,7 @@ export interface OsceSession {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  chat_interactions_count?: number;
 }
 
 export type CaseRef =
