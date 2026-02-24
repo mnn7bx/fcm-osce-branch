@@ -8,6 +8,8 @@ import type { OsceSession, DoorPrepDiagnosis, DoorPrepData, PracticeCase, FcmCas
 import { PRACTICE_CASES } from "@/data/practice-cases";
 import { supabase } from "@/lib/supabase";
 import { OsceProgress } from "@/components/osce-progress";
+import { OsceChatPanel } from "@/components/osce-chat-panel";
+import type { OsceChatSessionContext } from "@/components/osce-chat-panel";
 import { DiagnosisInput } from "@/components/diagnosis-input";
 import { DoorPrepDiagnosisRow } from "@/components/door-prep-diagnosis-row";
 import { Card, CardContent } from "@/components/ui/card";
@@ -158,122 +160,141 @@ export default function DoorPrepPage() {
     );
   }
 
+  const sessionContext: OsceChatSessionContext = {
+    chief_complaint: caseInfo?.chief_complaint,
+    patient_age: caseInfo?.patient_age,
+    patient_gender: caseInfo?.patient_gender,
+    vitals: caseInfo?.vitals,
+    current_entries: diagnoses.length > 0
+      ? `Diagnoses: ${diagnoses.map((d) => d.diagnosis).join(", ")}. ` +
+        `History questions: ${diagnoses.flatMap((d) => d.history_questions.filter((q) => q.trim())).join("; ") || "none"}. ` +
+        `PE maneuvers: ${diagnoses.flatMap((d) => d.pe_maneuvers).join(", ") || "none"}.`
+      : "No diagnoses entered yet.",
+  };
+
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto">
-      <OsceProgress currentPhase="door_prep" sessionId={sessionId} sessionCompleted={readOnly} />
+    <div className="flex gap-4 p-4 max-w-5xl mx-auto">
+      <div className="flex-1 min-w-0 space-y-4">
+        <OsceProgress currentPhase="door_prep" sessionId={sessionId} sessionCompleted={readOnly} />
 
-      {/* Door card — sticky so demographics stay visible while scrolling */}
-      {caseInfo && (
-        <Card className="border-primary/30 bg-accent/20 sticky top-2 z-10">
-          <CardContent className="p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <ClipboardList className="h-4 w-4 text-primary" />
-              <span className="text-xs font-medium text-primary uppercase">
-                Door Information
-              </span>
-            </div>
-            <p className="text-sm font-medium">{caseInfo.chief_complaint}</p>
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {caseInfo.patient_name && (
-                <span className="font-medium">{caseInfo.patient_name}</span>
-              )}
-              {(caseInfo.patient_age || caseInfo.patient_gender) && (
-                <span>
-                  {caseInfo.patient_age ? `${caseInfo.patient_age}yo` : ""}
-                  {caseInfo.patient_age && caseInfo.patient_gender ? " " : ""}
-                  {caseInfo.patient_gender ?? ""}
+        {/* Door card — sticky so demographics stay visible while scrolling */}
+        {caseInfo && (
+          <Card className="border-primary/30 bg-accent/20 sticky top-2 z-10">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium text-primary uppercase">
+                  Door Information
                 </span>
-              )}
-              {caseInfo.body_system && (
-                <Badge variant="outline" className="text-[10px]">
-                  {caseInfo.body_system}
-                </Badge>
-              )}
-            </div>
-            {caseInfo.vitals && Object.keys(caseInfo.vitals).length > 0 && (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
-                {Object.entries(caseInfo.vitals).map(([key, val]) => (
-                  <div key={key}>
-                    <span className="font-medium">{key}:</span> {val}
-                  </div>
-                ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              <p className="text-sm font-medium">{caseInfo.chief_complaint}</p>
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                {caseInfo.patient_name && (
+                  <span className="font-medium">{caseInfo.patient_name}</span>
+                )}
+                {(caseInfo.patient_age || caseInfo.patient_gender) && (
+                  <span>
+                    {caseInfo.patient_age ? `${caseInfo.patient_age}yo` : ""}
+                    {caseInfo.patient_age && caseInfo.patient_gender ? " " : ""}
+                    {caseInfo.patient_gender ?? ""}
+                  </span>
+                )}
+                {caseInfo.body_system && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {caseInfo.body_system}
+                  </Badge>
+                )}
+              </div>
+              {caseInfo.vitals && Object.keys(caseInfo.vitals).length > 0 && (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+                  {Object.entries(caseInfo.vitals).map(([key, val]) => (
+                    <div key={key}>
+                      <span className="font-medium">{key}:</span> {val}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Read-only banner */}
-      {readOnly && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
-          <Eye className="h-3.5 w-3.5 shrink-0" />
-          Viewing submitted door prep — read only
-        </div>
-      )}
+        {/* Read-only banner */}
+        {readOnly && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+            <Eye className="h-3.5 w-3.5 shrink-0" />
+            Viewing submitted door prep — read only
+          </div>
+        )}
 
-      {/* Instructions (active only) */}
-      {!readOnly && (
-        <InstructionBanner>
-          Build your differential: for each diagnosis, list the history questions
-          you would ask and the PE maneuvers you would perform.
-        </InstructionBanner>
-      )}
+        {/* Instructions (active only) */}
+        {!readOnly && (
+          <InstructionBanner>
+            Build your differential: for each diagnosis, list the history questions
+            you would ask and the PE maneuvers you would perform.
+          </InstructionBanner>
+        )}
 
-      {/* Diagnosis input (active only) */}
-      {!readOnly && (
-        <DiagnosisInput
-          onAdd={addDiagnosis}
-          existingDiagnoses={diagnoses.map((d) => d.diagnosis)}
-        />
-      )}
-
-      {/* Diagnosis rows */}
-      <div className="space-y-3">
-        {diagnoses.map((d, i) => (
-          <DoorPrepDiagnosisRow
-            key={`${d.diagnosis}-${i}`}
-            diagnosis={d}
-            index={i}
-            total={diagnoses.length}
-            disabled={readOnly}
-            onRemove={removeDiagnosis}
-            onMoveUp={(idx) => moveDiagnosis(idx, "up")}
-            onMoveDown={(idx) => moveDiagnosis(idx, "down")}
-            onUpdate={updateDiagnosis}
+        {/* Diagnosis input (active only) */}
+        {!readOnly && (
+          <DiagnosisInput
+            onAdd={addDiagnosis}
+            existingDiagnoses={diagnoses.map((d) => d.diagnosis)}
           />
-        ))}
+        )}
+
+        {/* Diagnosis rows */}
+        <div className="space-y-3">
+          {diagnoses.map((d, i) => (
+            <DoorPrepDiagnosisRow
+              key={`${d.diagnosis}-${i}`}
+              diagnosis={d}
+              index={i}
+              total={diagnoses.length}
+              disabled={readOnly}
+              onRemove={removeDiagnosis}
+              onMoveUp={(idx) => moveDiagnosis(idx, "up")}
+              onMoveDown={(idx) => moveDiagnosis(idx, "down")}
+              onUpdate={updateDiagnosis}
+            />
+          ))}
+        </div>
+
+        {/* Save status (active only) */}
+        {!readOnly && saveStatus !== "idle" && (
+          <p className="text-xs text-muted-foreground text-center">
+            {saveStatus === "saving" && "Saving..."}
+            {saveStatus === "saved" && "Saved"}
+            {saveStatus === "error" && "Save failed"}
+          </p>
+        )}
+
+        {/* Submit (active only) */}
+        {!readOnly && (
+          <Button
+            onClick={handleSubmit}
+            disabled={diagnoses.length === 0 || submitting}
+            className="w-full"
+            size="lg"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                Continue to SOAP Note
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </>
+            )}
+          </Button>
+        )}
       </div>
-
-      {/* Save status (active only) */}
-      {!readOnly && saveStatus !== "idle" && (
-        <p className="text-xs text-muted-foreground text-center">
-          {saveStatus === "saving" && "Saving..."}
-          {saveStatus === "saved" && "Saved"}
-          {saveStatus === "error" && "Save failed"}
-        </p>
-      )}
-
-      {/* Submit (active only) */}
-      {!readOnly && (
-        <Button
-          onClick={handleSubmit}
-          disabled={diagnoses.length === 0 || submitting}
-          className="w-full"
-          size="lg"
-        >
-          {submitting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Submitting...
-            </>
-          ) : (
-            <>
-              Continue to SOAP Note
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </>
-          )}
-        </Button>
-      )}
+      <OsceChatPanel
+        sessionId={sessionId}
+        phase="door_prep"
+        sessionContext={sessionContext}
+      />
     </div>
   );
 }
