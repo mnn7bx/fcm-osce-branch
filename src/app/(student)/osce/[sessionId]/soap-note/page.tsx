@@ -20,6 +20,8 @@ import type { Annotation, LinkedFinding } from "@/components/highlightable-text"
 import { InstructionBanner } from "@/components/instruction-banner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { OsceChatPanel } from "@/components/osce-chat-panel";
+import type { OsceChatSessionContext } from "@/components/osce-chat-panel";
 import {
   Loader2,
   ArrowRight,
@@ -447,40 +449,55 @@ export default function SoapNotePage() {
     </>
   );
 
+  const sessionContext: OsceChatSessionContext = {
+    current_entries: diagnoses.length > 0
+      ? `Revised diagnoses: ${diagnoses.map((d) => d.diagnosis).join(", ")}. ` +
+        `Subjective review: ${soapContext?.subjective?.slice(0, 200) ?? "not yet reviewed"}. ` +
+        `Objective review: ${soapContext?.objective?.slice(0, 200) ?? "not yet reviewed"}.`
+      : "No revised diagnoses entered yet.",
+  };
+
   return (
-    <div className="p-4 space-y-4 max-w-6xl mx-auto">
-      <OsceProgress currentPhase="soap_note" sessionId={sessionId} sessionCompleted={readOnly} />
+    <div className="flex gap-4 p-4 max-w-7xl mx-auto">
+      <div className="flex-1 min-w-0 space-y-4">
+        <OsceProgress currentPhase="soap_note" sessionId={sessionId} sessionCompleted={readOnly} />
 
-      {/* Read-only banner or transition message */}
-      {readOnly ? (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
-          <Eye className="h-3.5 w-3.5 shrink-0" />
-          Viewing submitted SOAP note — read only
-        </div>
-      ) : (
-        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
-          <CardContent className="p-4">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              You&apos;ve completed the patient encounter. Review the findings
-              below, then revise your differential with supporting evidence and
-              management plans.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+        {/* Read-only banner or transition message */}
+        {readOnly ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+            <Eye className="h-3.5 w-3.5 shrink-0" />
+            Viewing submitted SOAP note — read only
+          </div>
+        ) : (
+          <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+            <CardContent className="p-4">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                You&apos;ve completed the patient encounter. Review the findings
+                below, then revise your differential with supporting evidence and
+                management plans.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Two-column layout on desktop, stacked on mobile */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Left column: S/O (sticky on desktop) */}
-        <div className="md:sticky md:top-4 md:self-start md:max-h-[calc(100dvh-6rem)] md:overflow-y-auto space-y-3">
-          {soContent}
-        </div>
+        {/* Two-column layout on desktop, stacked on mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Left column: S/O (sticky on desktop) */}
+          <div className="md:sticky md:top-4 md:self-start md:max-h-[calc(100dvh-6rem)] md:overflow-y-auto space-y-3">
+            {soContent}
+          </div>
 
-        {/* Right column: Diagnoses */}
-        <div className="space-y-4">
-          {diagnosesContent}
+          {/* Right column: Diagnoses */}
+          <div className="space-y-4">
+            {diagnosesContent}
+          </div>
         </div>
       </div>
+      <OsceChatPanel
+        sessionId={sessionId}
+        phase="soap_note"
+        sessionContext={sessionContext}
+      />
     </div>
   );
 }
