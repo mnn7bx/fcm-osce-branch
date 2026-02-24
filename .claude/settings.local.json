@@ -21,7 +21,12 @@
       "Bash(pkill:*)",
       "Bash(lsof:*)",
       "Bash(git diff:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(command:*)",
+      "Bash(echo \"y\" | npx shadcn@latest add sheet 2>&1)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(git push:*)"
     ]
   }
 }
