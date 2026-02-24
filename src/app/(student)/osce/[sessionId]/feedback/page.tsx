@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import type { OsceSession, OSCEFeedbackResult, DoorPrepData, SoapNoteData } from "@/types";
 import { OsceProgress } from "@/components/osce-progress";
 import { RubricScoreCard } from "@/components/rubric-score-card";
+import { OsceChatPanel } from "@/components/osce-chat-panel";
+import type { OsceChatSessionContext } from "@/components/osce-chat-panel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -205,8 +207,20 @@ export default function OsceFeedbackPage() {
     );
   }
 
+  const sessionContext: OsceChatSessionContext = {
+    current_entries: feedback
+      ? `Strengths: ${feedback.strengths.join("; ")}. ` +
+        `Improvements: ${feedback.improvements.join("; ")}. ` +
+        (feedback.cant_miss?.length
+          ? `Missed can't-miss diagnoses: ${feedback.cant_miss.join(", ")}.`
+          : "")
+      : "Feedback not yet loaded.",
+    feedback_result: feedback,
+  };
+
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto">
+    <div className="flex gap-4 p-4 max-w-5xl mx-auto">
+      <div className="flex-1 min-w-0 space-y-4">
       <OsceProgress currentPhase="completed" sessionId={sessionId} sessionCompleted />
 
       <div className="flex items-center gap-2">
@@ -336,6 +350,12 @@ export default function OsceFeedbackPage() {
         <RotateCcw className="h-4 w-4 mr-2" />
         Practice Another Case
       </Button>
+      </div>
+      <OsceChatPanel
+        sessionId={sessionId}
+        phase="feedback"
+        sessionContext={sessionContext}
+      />
     </div>
   );
 }
