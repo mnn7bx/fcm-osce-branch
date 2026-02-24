@@ -93,7 +93,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <Loader2 className="h-5 w-5 animate-spin-slow text-primary" />
       </div>
     );
   }
@@ -133,7 +133,7 @@ export default function DashboardPage() {
 
       {loadingData && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin-slow" />
           Loading data...
         </div>
       )}

@@ -104,7 +104,7 @@ export default function NotesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <Loader2 className="h-5 w-5 animate-spin-slow text-primary" />
       </div>
     );
   }
@@ -235,7 +235,7 @@ export default function NotesPage() {
               )}
               {saving === note.case_id && (
                 <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin-slow" />
                   Saving...
                 </div>
               )}

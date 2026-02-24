@@ -34,7 +34,7 @@ function SaveStatusIndicator({ status }: { status: string }) {
   if (status === "saving") {
     return (
       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Loader2 className="h-3 w-3 animate-spin" />
+        <Loader2 className="h-3 w-3 animate-spin-slow" />
         Saving...
       </span>
     );
@@ -338,7 +338,7 @@ export default function CaseDifferentialPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <Loader2 className="h-5 w-5 animate-spin-slow text-muted-foreground" />
       </div>
     );
   }
@@ -543,7 +543,7 @@ export default function CaseDifferentialPage() {
               </label>
               {savingNote && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin-slow" />
                   Saving...
                 </span>
               )}
@@ -584,7 +584,7 @@ export default function CaseDifferentialPage() {
                   className="shrink-0 self-end"
                 >
                   {sendingQuestion ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin-slow" />
                   ) : (
                     <Send className="h-4 w-4" />
                   )}
@@ -605,7 +605,7 @@ export default function CaseDifferentialPage() {
         >
           {submitting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin-slow" />
               Submitting...
             </>
           ) : (

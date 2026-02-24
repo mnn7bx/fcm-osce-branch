@@ -173,7 +173,7 @@ export default function FeedbackPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <Loader2 className="h-5 w-5 animate-spin-slow text-primary" />
       </div>
     );
   }
@@ -243,7 +243,7 @@ export default function FeedbackPage() {
       {generating && (
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <Loader2 className="h-5 w-5 animate-spin-slow text-primary" />
             <span className="text-sm">Generating your feedback...</span>
           </CardContent>
         </Card>
@@ -509,7 +509,7 @@ export default function FeedbackPage() {
                     }}
                   >
                     {sendingTopics ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin-slow" />
                     ) : (
                       <Send className="h-4 w-4" />
                     )}
@@ -671,7 +671,7 @@ export default function FeedbackPage() {
                       }}
                     >
                       {savingTakeaway ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin-slow" />
                       ) : (
                         <Send className="h-4 w-4" />
                       )}

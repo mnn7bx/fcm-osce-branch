@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(tail:*)",
+      "Bash(head:*)",
+      "Bash($NODE:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(node:*)",
+      "Bash(npx tsx:*)",
+      "Bash(pandoc:*)",
+      "Bash(python3:*)",
+      "Bash(echo ✓ $\\(basename $file\\):*)",
+      "Bash(curl:*)",
+      "Bash(git stash:*)",
+      "Bash(sleep 1:*)",
+      "Bash(pkill:*)",
+      "Bash(lsof:*)",
+      "Bash(git diff:*)",
+      "Bash(git reset:*)"
+    ]
+  }
+}

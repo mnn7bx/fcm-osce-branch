@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>OSCE Practice Expansion</title>
+  <style>
+    html {
+      line-height: 1.5;
+      font-family: Georgia, serif;
+      font-size: 20px;
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      word-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 1em;
+      }
+    }
+    @media print {
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, 'Lucida Console', Consolas, monospace;
+      font-size: 85%;
+      margin: 0;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">OSCE Practice Expansion</h1>
+</header>
+<h1 id="osce-practice-expansion-engineering-summary">OSCE Practice Expansion — Engineering Summary</h1>
+<p><strong>Branch:</strong> <code>main</code> <strong>Date:</strong> February 2026 <strong>Reviewer:</strong> Human code reviewer</p>
+<hr />
+<h2 id="overview">Overview</h2>
+<p>This document summarizes the engineering work completed to expand the FCM Companion app with a full <strong>OSCE (Objective Structured Clinical Examination) practice simulation</strong>. The feature replaces the previous single-shot OSCE page with a structured three-phase workflow: <strong>Door Prep → SOAP Note → AI Feedback</strong>, along with session persistence, read-only review, and study aids.</p>
+<hr />
+<h2 id="what-was-built">What Was Built</h2>
+<h3 id="phase-a-door-prep">Phase A — Door Prep</h3>
+<p>Students review door information (chief complaint, patient demographics, vitals) and build an initial differential diagnosis before entering the room. For each diagnosis they record:</p>
+<ul>
+<li>Planned history questions (free text)</li>
+<li>Physical exam maneuvers (autocomplete from 117-entry vocabulary)</li>
+<li>Confidence rating (1–5)</li>
+</ul>
+<p><strong>Key files:</strong></p>
+<table>
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>src/app/(student)/osce/page.tsx</code></td>
+<td>Home page — case picker, session history</td>
+</tr>
+<tr class="even">
+<td><code>src/app/(student)/osce/[sessionId]/door-prep/page.tsx</code></td>
+<td>Door Prep phase UI</td>
+</tr>
+<tr class="odd">
+<td><code>src/components/door-prep-diagnosis-row.tsx</code></td>
+<td>Per-diagnosis card with questions + PE maneuvers</td>
+</tr>
+<tr class="even">
+<td><code>src/components/autocomplete-input.tsx</code></td>
+<td>Generic scored autocomplete (injectable search fn)</td>
+</tr>
+<tr class="odd">
+<td><code>src/components/osce-progress.tsx</code></td>
+<td>Three-step progress indicator (Door Prep → SOAP → Feedback)</td>
+</tr>
+<tr class="even">
+<td><code>src/data/pe-maneuvers.json</code></td>
+<td>117 PE maneuver entries</td>
+</tr>
+<tr class="odd">
+<td><code>src/data/pe-lookup.ts</code></td>
+<td>Scored search: exact abbrev 3.0, starts-with 2.0, substring 1.0</td>
+</tr>
+<tr class="even">
+<td><code>src/lib/use-osce-autosave.ts</code></td>
+<td>500ms debounce autosave hook (PATCH to session API)</td>
+</tr>
+<tr class="odd">
+<td><code>src/app/api/osce-session/route.ts</code></td>
+<td>POST (create session), GET (list all user sessions)</td>
+</tr>
+<tr class="even">
+<td><code>src/app/api/osce-session/[id]/route.ts</code></td>
+<td>GET (fetch), PATCH (update phase data)</td>
+</tr>
+<tr class="odd">
+<td><code>supabase/migration-osce-sessions.sql</code></td>
+<td>Database migration</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="phase-b-soap-note">Phase B — SOAP Note</h3>
+<p>After the encounter, students revise their differential with post-encounter data. For each diagnosis they:</p>
+<ul>
+<li>Map supporting evidence from the Subjective/Objective findings</li>
+<li>Build a diagnostic plan (autocomplete from 120-entry vocabulary)</li>
+<li>Build a therapeutic plan (autocomplete from 120-entry vocabulary)</li>
+</ul>
+<p>The Subjective and Objective findings are loaded from a precomputed static file (see §Performance below). Students can highlight text in yellow or bold it to annotate key findings.</p>
+<p><strong>Key files:</strong></p>
+<table>
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>src/app/(student)/osce/[sessionId]/soap-note/page.tsx</code></td>
+<td>SOAP Note phase UI</td>
+</tr>
+<tr class="even">
+<td><code>src/components/revised-diagnosis-row.tsx</code></td>
+<td>Per-diagnosis card with evidence + plans</td>
+</tr>
+<tr class="odd">
+<td><code>src/components/evidence-mapper.tsx</code></td>
+<td>Finding extraction + toggle selection</td>
+</tr>
+<tr class="even">
+<td><code>src/components/highlightable-text.tsx</code></td>
+<td>Select-to-highlight/bold annotation component</td>
+</tr>
+<tr class="odd">
+<td><code>src/data/diagnostic-tests.json</code></td>
+<td>120 diagnostic test entries</td>
+</tr>
+<tr class="even">
+<td><code>src/data/therapeutic-options.json</code></td>
+<td>120 therapeutic option entries</td>
+</tr>
+<tr class="odd">
+<td><code>src/data/osce-soap-contexts.json</code></td>
+<td>Precomputed S/O for all 204 OSCE practice cases</td>
+</tr>
+<tr class="even">
+<td><code>src/lib/osce-soap.ts</code></td>
+<td>S/O extraction logic + Claude prompt builder</td>
+</tr>
+<tr class="odd">
+<td><code>src/app/api/osce-soap-context/route.ts</code></td>
+<td>S/O lookup (static) + Claude fallback for FCM cases</td>
+</tr>
+<tr class="even">
+<td><code>scripts/generate-soap-contexts.ts</code></td>
+<td>Build script: extracts S/O from all 204 cases</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="phase-c-feedback">Phase C — Feedback</h3>
+<p>AI-generated attending-style feedback displayed after SOAP note submission. Uses a two-step approach: deterministic comparison first, then Claude narrative.</p>
+<p><strong>Rubric categories scored:</strong> Differential Diagnosis, History Taking, Physical Exam Selection, Diagnostic Workup, Treatment Planning</p>
+<p><strong>Rating scale:</strong> <code>excellent</code> → <code>good</code> → <code>developing</code> → <code>needs_work</code></p>
+<p><strong>Feedback sections:</strong> Performance rubric, Strengths, Areas to Improve, Don’t Miss (critical missed diagnoses)</p>
+<p><strong>Key files:</strong></p>
+<table>
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>src/app/(student)/osce/[sessionId]/feedback/page.tsx</code></td>
+<td>Feedback display page</td>
+</tr>
+<tr class="even">
+<td><code>src/components/rubric-score-card.tsx</code></td>
+<td>Color-coded rating card (green/blue/amber/muted)</td>
+</tr>
+<tr class="odd">
+<td><code>src/lib/osce-feedback.ts</code></td>
+<td><code>compareOscePerformance()</code> + <code>buildOsceFeedbackPrompt()</code></td>
+</tr>
+<tr class="even">
+<td><code>src/app/api/osce-feedback/route.ts</code></td>
+<td>Calls Claude, caches result in session row</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="database">Database</h2>
+<p><strong>New table:</strong> <code>fcm_osce_sessions</code></p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> fcm_osce_sessions (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">id</span>                    UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  user_id               UUID <span class="kw">REFERENCES</span> fcm_users(<span class="kw">id</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  case_id               UUID <span class="kw">REFERENCES</span> fcm_cases(<span class="kw">id</span>),</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  practice_case_id      TEXT,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  case_source           TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">CHECK</span> (case_source <span class="kw">IN</span> (<span class="st">&#39;scheduled&#39;</span>,<span class="st">&#39;practice&#39;</span>,<span class="st">&#39;custom&#39;</span>)),</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  door_prep             JSONB,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  door_prep_submitted_at TIMESTAMPTZ,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  soap_note             JSONB,</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  soap_submitted_at     TIMESTAMPTZ,</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  feedback              JSONB,</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  feedback_generated_at TIMESTAMPTZ,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  status                TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;door_prep&#39;</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>                          <span class="kw">CHECK</span> (status <span class="kw">IN</span> (<span class="st">&#39;door_prep&#39;</span>,<span class="st">&#39;soap_note&#39;</span>,<span class="st">&#39;completed&#39;</span>)),</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  started_at            TIMESTAMPTZ <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  completed_at          TIMESTAMPTZ,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  created_at            TIMESTAMPTZ <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  updated_at            TIMESTAMPTZ <span class="kw">DEFAULT</span> now()</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p>All session data (door prep differential, SOAP note, AI feedback) is stored as JSONB. Permissive RLS policy matches existing tables. Indexes on <code>user_id</code> and <code>case_id</code>.</p>
+<hr />
+<h2 id="session-history-review">Session History &amp; Review</h2>
+<p>All completed sessions are persisted and viewable. The OSCE home page shows:</p>
+<ul>
+<li><strong>Continue Session</strong> — in-progress sessions with resume links</li>
+<li><strong>Past Sessions</strong> — completed sessions with rubric dot summary, date, first strength; shows 5 most recent with “Show all N sessions” toggle</li>
+<li><strong>Your Cases</strong> — FCM scheduled cases the student has submitted</li>
+<li><strong>Practice Library</strong> — all OSCE-format practice cases</li>
+</ul>
+<h3 id="read-only-review">Read-Only Review</h3>
+<p>Completed sessions can be reviewed in full. The progress bar at the top (Door Prep → SOAP Note → Feedback) is <strong>clickable</strong> — tapping any step navigates to that phase’s read-only view. The active step is highlighted with a ring; all other completed steps show as filled.</p>
+<p>In read-only mode: - A “Viewing submitted … — read only” banner replaces the instructions - Diagnosis rows start <strong>collapsed</strong>, showing a compact summary (e.g. “3 questions · 2 PE maneuvers”) - Tapping a row <strong>expands</strong> it to show all submitted answers as read-only text/badges - Add/edit/remove controls are hidden - Autosave is disabled</p>
+<hr />
+<h2 id="performance">Performance</h2>
+<p><strong>Root cause fix:</strong> All 204 OSCE practice cases store data under <code>full_case_data.OSCE_Examination</code>, but the original extractor looked at the top level. This caused every S/O load to fail and fall through to Claude (which was also timing out).</p>
+<p><strong>Fix:</strong> <code>scripts/generate-soap-contexts.ts</code> runs at build time, extracts S/O from all 204 cases deterministically, and writes <code>src/data/osce-soap-contexts.json</code>. The API route does a direct JSON key lookup — <strong>no network call, no Claude, instant response</strong> for all practice cases. Claude fallback is preserved for scheduled FCM cases (which have empty <code>full_case_data</code>).</p>
+<p>To regenerate after adding new cases:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run data:soap</span></code></pre></div>
+<hr />
+<h2 id="ux-details">UX Details</h2>
+<table>
+<colgroup>
+<col style="width: 52%" />
+<col style="width: 47%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Door card</td>
+<td>Sticks to top while scrolling; shows patient name, age, gender independently (not requiring both)</td>
+</tr>
+<tr class="even">
+<td>Demographics</td>
+<td>Patient name shown for scheduled FCM cases; age/gender shown even if only one is available</td>
+</tr>
+<tr class="odd">
+<td>S/O load failure</td>
+<td>Inline error with Retry button; SOAP note still fully submittable</td>
+</tr>
+<tr class="even">
+<td>Text annotation</td>
+<td>Select text in S/O sections → floating toolbar → highlight (yellow) or bold; section labels auto-bolded</td>
+</tr>
+<tr class="odd">
+<td>Progress bar</td>
+<td>Updates to reflect actual phase being viewed during review; all connector lines filled for completed sessions</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="files-changed">Files Changed</h2>
+<h3 id="new-files-30">New Files (30)</h3>
+<pre><code>supabase/migration-osce-sessions.sql
+src/types/osce.ts
+src/data/pe-maneuvers.json
+src/data/pe-lookup.ts
+src/data/diagnostic-tests.json
+src/data/diagnostic-test-lookup.ts
+src/data/therapeutic-options.json
+src/data/therapeutic-lookup.ts
+src/data/osce-soap-contexts.json
+src/components/autocomplete-input.tsx
+src/components/osce-progress.tsx
+src/components/door-prep-diagnosis-row.tsx
+src/components/revised-diagnosis-row.tsx
+src/components/evidence-mapper.tsx
+src/components/rubric-score-card.tsx
+src/components/highlightable-text.tsx
+src/lib/use-osce-autosave.ts
+src/lib/osce-soap.ts
+src/lib/osce-feedback.ts
+src/app/(student)/osce/page.tsx            ← replaced
+src/app/(student)/osce/[sessionId]/page.tsx
+src/app/(student)/osce/[sessionId]/door-prep/page.tsx
+src/app/(student)/osce/[sessionId]/soap-note/page.tsx
+src/app/(student)/osce/[sessionId]/feedback/page.tsx
+src/app/api/osce-session/route.ts
+src/app/api/osce-session/[id]/route.ts
+src/app/api/osce-feedback/route.ts
+src/app/api/osce-soap-context/route.ts
+scripts/generate-soap-contexts.ts</code></pre>
+<h3 id="modified-files-3">Modified Files (3)</h3>
+<pre><code>src/types/index.ts          — re-exports from osce.ts
+src/app/(student)/layout.tsx — OSCE added to nav
+supabase/schema.sql          — fcm_osce_sessions table definition</code></pre>
+<hr />
+<h2 id="how-to-verify">How to Verify</h2>
+<ol type="1">
+<li>Navigate to <code>/osce</code> — case picker loads with Practice Library and any scheduled cases</li>
+<li>Start a practice case — session created in <code>fcm_osce_sessions</code>, navigates to Door Prep</li>
+<li>Door Prep: demographics visible and sticky; add diagnoses with history questions + PE maneuvers; autosave on changes; submit advances to SOAP Note</li>
+<li>SOAP Note: S/O loads instantly from static file; highlight text; map evidence; add diagnostic/therapeutic plans; submit advances to Feedback</li>
+<li>Feedback: rubric scores, strengths, improvements, don’t-miss items displayed</li>
+<li>Return to <code>/osce</code> — completed session appears in Past Sessions with rubric dots</li>
+<li>Tap a past session → Feedback page; tap “Door Prep” or “SOAP Note” in progress bar → read-only review; tap diagnoses to expand/collapse submitted answers</li>
+<li>Check <code>fcm_osce_sessions</code> table in Supabase — all data persisted correctly</li>
+</ol>
+<hr />
+<p><em>Generated by Claude Sonnet 4.6 — FCM Companion OSCE Expansion</em></p>
+</body>
+</html>

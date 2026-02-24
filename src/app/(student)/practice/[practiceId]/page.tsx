@@ -345,7 +345,7 @@ export default function PracticeCasePage() {
         >
           {submitting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin-slow" />
               Checking...
             </>
           ) : (

@@ -201,7 +201,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <Loader2 className="h-5 w-5 animate-spin-slow text-primary" />
       </div>
     );
   }
@@ -624,7 +624,7 @@ export default function AdminPage() {
             >
               {creatingCase ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin-slow" />
                   Creating...
                 </>
               ) : (
@@ -664,7 +664,7 @@ export default function AdminPage() {
             >
               {resetting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  <Loader2 className="h-4 w-4 animate-spin-slow mr-1" />
                   Resetting...
                 </>
               ) : (
